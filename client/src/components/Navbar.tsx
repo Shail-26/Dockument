@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Lock, Upload } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Navbar() {
@@ -17,6 +17,10 @@ export function Navbar() {
             <Link to="/features" className="nav-link">Features</Link>
             <Link to="/about" className="nav-link">About</Link>
             <Link to="/contact" className="nav-link">Contact</Link>
+            <Link to="/upload" className="flex items-center space-x-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">
+              <Upload className="w-5 h-5" />
+              <span>Upload</span>
+            </Link>
             <ThemeToggle />
             <Link to="/login" className="gradient-btn">Login</Link>
           </div>

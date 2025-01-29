@@ -1,1 +1,3 @@
 extra
+.env
+node_modules
