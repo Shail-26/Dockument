@@ -238,9 +238,11 @@ export function FileUpload() {
         success: boolean;
         ipfsHash: string;
         url: string;
+        txHash?: string;
     } | null>(null);
+
     const [notification, setNotification] = useState<{
-        type: 'success' | 'error';
+        type: "success" | "error";
         message: string;
     } | null>(null);
 
@@ -258,24 +260,47 @@ export function FileUpload() {
         setResponse(null);
 
         const formData = new FormData();
-        formData.append('file', selectedFile);
+        formData.append("file", selectedFile);
 
         try {
-            const response = await fetch('http://localhost:5000/upload-to-ipfs', {
-                method: 'POST',
+            // Step 1: Upload to IPFS
+            const ipfsResponse = await fetch("http://localhost:5000/upload-to-ipfs", {
+                method: "POST",
                 body: formData,
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                // setResponse(JSON.stringify(data, null, 2));
-                setResponse({ success: data.success, ipfsHash: data.ipfsHash, url: data.url });
-                setNotification({ type: 'success', message: 'File uploaded successfully!' });
-            } else {
-                throw new Error('Upload failed.');
+            if (!ipfsResponse.ok) {
+                throw new Error("Failed to upload file to IPFS.");
             }
+
+            const ipfsData = await ipfsResponse.json();
+            const { ipfsHash, url } = ipfsData;
+
+            // Step 2: Store File Hash on Blockchain
+            const blockchainResponse = await fetch("http://localhost:5000/upload", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ fileHash: ipfsHash }),
+            });
+
+            if (!blockchainResponse.ok) {
+                throw new Error("Failed to store file hash on blockchain.");
+            }
+
+            const blockchainData = await blockchainResponse.json();
+            setResponse({
+                success: true,
+                ipfsHash,
+                url,
+                txHash: blockchainData.txHash,
+            });
+            console.log((response));
+            setNotification({ type: "success", message: "File uploaded and stored on blockchain successfully!" });
+
         } catch (error) {
-            setNotification({ type: 'error', message: 'Failed to upload the file. Please try again.' });
+            setNotification({ type: "error", message: "Error uploading file. Please try again." });
         } finally {
             setIsUploading(false);
         }
@@ -286,7 +311,7 @@ export function FileUpload() {
             <section className="py-12 bg-transparent">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">
-                        Upload File to IPFS
+                        Upload File to IPFS & Blockchain
                     </h1>
                 </div>
             </section>
@@ -294,11 +319,10 @@ export function FileUpload() {
             <section className="py-12 bg-transparent">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     {notification && (
-                        <div className={`mb-6 p-4 rounded-lg flex items-center ${notification.type === 'success'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}>
-                            {notification.type === 'success' ? (
+                        <div className={`mb-6 p-4 rounded-lg flex items-center ${
+                            notification.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        }`}>
+                            {notification.type === "success" ? (
                                 <CheckCircle className="w-5 h-5 mr-2" />
                             ) : (
                                 <AlertCircle className="w-5 h-5 mr-2" />
@@ -312,25 +336,13 @@ export function FileUpload() {
                             <label htmlFor="fileInput" className="cursor-pointer flex flex-col items-center">
                                 <Upload className="w-10 h-10 text-gray-500 mb-2" />
                                 <span className="text-gray-600 dark:text-gray-300">Click to upload a file</span>
-                                <input
-                                    type="file"
-                                    id="fileInput"
-                                    name="file"
-                                    required
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
+                                <input type="file" id="fileInput" name="file" required onChange={handleFileChange} className="hidden" />
                             </label>
                         </div>
-                        {selectedFile && (
-                            <div className="text-gray-700 dark:text-gray-300 text-center mb-4">
-                                Selected File: {selectedFile.name}
-                            </div>
-                        )}
-                        <button
-                            type="submit"
-                            disabled={isUploading}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+
+                        {selectedFile && <div className="text-gray-700 dark:text-gray-300 text-center mb-4">Selected File: {selectedFile.name}</div>}
+
+                        <button type="submit" disabled={isUploading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
                             {isUploading ? (
                                 <>
                                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -340,46 +352,40 @@ export function FileUpload() {
                                     Uploading...
                                 </>
                             ) : (
-                                'Upload'
+                                "Upload"
                             )}
                         </button>
                     </form>
 
-                    {/* <h2 className="text-xl font-bold mt-8">Response:</h2>
-                    <div id="responseContainer" className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200">
-                        {response || 'No response yet.'}
-                    </div> */}
-                    <div className="mt-12">
-                        <h3 className="text-xl font-bold mb-6">Recent Uploads</h3>
-                        {response && 
+                    {response && (
+                        <div className="mt-12">
+                            <h3 className="text-xl font-bold mb-6">Recent Uploads</h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
                                         <tr className="text-left border-b border-gray-200 dark:border-gray-700">
                                             <th className="pb-3 font-semibold">File Status</th>
-                                            <th className="pb-3 font-semibold">Hash</th>
+                                            <th className="pb-3 font-semibold">IPFS Hash</th>
                                             <th className="pb-3 font-semibold">URL</th>
+                                            <th className="pb-3 font-semibold">Transaction Hash</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                            <tr key="1" className="group">
-                                                <td className="py-4">
-                                                    <div className="flex items-center">
-                                                        {response.success ? "Uploaded Successfully" : "Failed to Upload"}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 text-gray-500 dark:text-gray-400">
-                                                    {response.ipfsHash}
-                                                </td>
-                                                <td className="py-4 text-gray-500 dark:text-gray-400">
-                                                    <a href={response.url} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View File</a>
-                                                </td>
-                                            </tr>
+                                        <tr key="1" className="group">
+                                            <td className="py-4">{response.success ? "Uploaded Successfully" : "Failed to Upload"}</td>
+                                            <td className="py-4 text-gray-500 dark:text-gray-400">{response.ipfsHash}</td>
+                                            <td className="py-4 text-gray-500 dark:text-gray-400">
+                                                <a href={response.url} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View File</a>
+                                            </td>
+                                            <td className="py-4 text-gray-500 dark:text-gray-400">
+                                                <a href={`https://etherscan.io/tx/${response.txHash}`} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View Transaction</a>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
-                        }
-                    </div>
+                        </div>
+                    )}
                 </div>
             </section>
         </div>
