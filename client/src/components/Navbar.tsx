@@ -22,7 +22,7 @@ export function Navbar() {
               <span>Upload</span>
             </Link>
             <ThemeToggle />
-            <Link to="/login" className="gradient-btn">Login</Link>
+            <Link to="/connect-wallet" className="gradient-btn">Connect Wallet</Link>
           </div>
         </div>
       </div>

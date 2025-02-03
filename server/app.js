@@ -10,6 +10,16 @@ const { Blob } = require('buffer');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const axios = require('axios');
+const NodeCache = require("node-cache");
+const rateLimit = require("express-rate-limit");
+
+const cache = new NodeCache({ stdTTL: 60 }); // Cache for 60 seconds
+
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 min
+  max: 10, // Max 10 requests per minute per IP
+  message: "Too many requests, please try again later."
+});
 
 // Middleware
 app.use(cors());
@@ -29,111 +39,120 @@ const provider = new JsonRpcProvider(process.env.INFURA_API_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 const contractAbi = [
     {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "string",
-                "name": "fileHash",
-                "type": "string"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "timestamp",
-                "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "owner",
-                "type": "address"
-            }
-        ],
-        "name": "FileUploaded",
-        "type": "event"
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "fileHash",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "FileUploaded",
+      "type": "event"
     },
     {
-        "inputs": [
-            {
-                "internalType": "string",
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "name": "files",
-        "outputs": [
-            {
-                "internalType": "string",
-                "name": "fileHash",
-                "type": "string"
-            },
-            {
-                "internalType": "uint256",
-                "name": "timestamp",
-                "type": "uint256"
-            },
-            {
-                "internalType": "address",
-                "name": "owner",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_fileHash",
+          "type": "string"
+        }
+      ],
+      "name": "fileExists",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "string",
-                "name": "_fileHash",
-                "type": "string"
-            }
-        ],
-        "name": "getFileOwner",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_fileHash",
+          "type": "string"
+        }
+      ],
+      "name": "getFileOwner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "string",
-                "name": "_fileHash",
-                "type": "string"
-            }
-        ],
-        "name": "getFileTimestamp",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_fileHash",
+          "type": "string"
+        }
+      ],
+      "name": "getFileTimestamp",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "string",
-                "name": "_fileHash",
-                "type": "string"
-            }
-        ],
-        "name": "uploadFile",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_user",
+          "type": "address"
+        }
+      ],
+      "name": "getUserFiles",
+      "outputs": [
+        {
+          "internalType": "string[]",
+          "name": "",
+          "type": "string[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_fileHash",
+          "type": "string"
+        }
+      ],
+      "name": "uploadFile",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
-];
+  ];
 
 const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractAbi, wallet);
 
@@ -216,4 +235,49 @@ app.post("/upload-to-ipfs", upload.single("file"), async (req, res) => {
     }
 });
 
+app.post('/api/verify-wallet', async (req, res) => {
+    const { address, message, signature } = req.body;
+
+    // Recover the address from the signed message
+    const recoveredAddress = ethers.verifyMessage(message, signature);
+
+    if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+        // Wallet verified
+        res.status(200).json({ success: true });
+    } else {
+        // Verification failed
+        res.status(400).json({ success: false, error: "Invalid signature" });
+    }
+});
+
+
+app.get('/user-files/:address', limiter, async (req, res) => {
+    const { address } = req.params;
+  
+    if (!ethers.isAddress(address)) {
+      return res.status(400).json({ success: false, error: "Invalid Ethereum address" });
+    }
+  
+    // Check cache first
+    const cachedFiles = cache.get(address);
+    if (cachedFiles) {
+      return res.status(200).json({ success: true, files: cachedFiles });
+    }
+  
+    try {
+      const files = await contract.getUserFiles(address);
+      
+      // Cache the result
+      cache.set(address, files);
+  
+      if (files.length === 0) {
+        return res.status(200).json({ success: true, message: "No files found for this user", files: [] });
+      }
+  
+      res.status(200).json({ success: true, files });
+    } catch (error) {
+      console.error("Error fetching user files:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch user files." });
+    }
+  });
 

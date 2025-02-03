@@ -68,21 +68,21 @@ export function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                name: 'Sarah Johnson',
-                role: 'Digital Artist',
-                content: 'SecureChain Locker has revolutionized how I store and share my digital artwork. The security features give me peace of mind.',
+                name: '1234',
+                role: 'tyu',
+                content: 'lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, voluptate.',
                 image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150',
               },
               {
-                name: 'Michael Chen',
-                role: 'Tech Entrepreneur',
-                content: 'The blockchain integration is brilliant. It\'s exactly what we needed for our company\'s sensitive documents.',
+                name: 'qwer',
+                role: 'ghj',
+                content: 'lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, voluptate.',
                 image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150',
               },
               {
-                name: 'Emily Rodriguez',
-                role: 'Legal Consultant',
-                content: 'The audit trail and access controls are fantastic. Perfect for maintaining client confidentiality.',
+                name: 'asdf',
+                role: 'bnm',
+                content: 'lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, voluptate.',
                 image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150',
               },
             ].map((testimonial, index) => (

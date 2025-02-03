@@ -8,14 +8,22 @@ contract FileStorage {
         address owner;
     }
 
-    mapping(string => File) public files;
+    mapping(string => File) private files;
+    mapping(address => string[]) private userFiles; // Store only file hashes to save space
 
-    event FileUploaded(string fileHash, uint256 timestamp, address owner);
+    event FileUploaded(string fileHash, uint256 timestamp, address indexed owner);
 
     function uploadFile(string memory _fileHash) public {
         require(bytes(_fileHash).length > 0, "Invalid file hash");
+        require(files[_fileHash].owner == address(0), "File already uploaded");
 
-        files[_fileHash] = File(_fileHash, block.timestamp, msg.sender);
+        files[_fileHash] = File({
+            fileHash: _fileHash,
+            timestamp: block.timestamp,
+            owner: msg.sender
+        });
+
+        userFiles[msg.sender].push(_fileHash);
 
         emit FileUploaded(_fileHash, block.timestamp, msg.sender);
     }
@@ -25,12 +33,16 @@ contract FileStorage {
         return files[_fileHash].owner;
     }
 
+    function getUserFiles(address _user) public view returns (string[] memory) {
+        return userFiles[_user];
+    }
 
     function getFileTimestamp(string memory _fileHash) public view returns (uint256) {
         require(bytes(files[_fileHash].fileHash).length > 0, "File does not exist");
         return files[_fileHash].timestamp;
     }
 
-
-
+    function fileExists(string memory _fileHash) public view returns (bool) {
+        return files[_fileHash].owner != address(0);
+    }
 }

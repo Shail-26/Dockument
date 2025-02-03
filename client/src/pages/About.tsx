@@ -4,22 +4,22 @@ import { Shield, Users, Globe } from 'lucide-react';
 export function About() {
   const teamMembers = [
     {
-      name: 'Alex Thompson',
-      role: 'CEO & Founder',
-      bio: 'Blockchain enthusiast with 10+ years in cybersecurity.',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&h=300',
+      name: 'Triparna Kar',
+      role: '',
+      bio: '22CS29',
+      image: '',
     },
     {
-      name: 'Diana Chen',
-      role: 'CTO',
-      bio: 'Former security architect at major tech companies.',
-      image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=300&h=300',
+      name: 'Shail Macwan',
+      role: '',
+      bio: '22CS035',
+      image: '',
     },
     {
-      name: 'Marcus Rodriguez',
-      role: 'Head of Product',
-      bio: 'Product strategist focused on user-centric solutions.',
-      image: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=300&h=300',
+      name: 'Ayush Mistri',
+      role: '',
+      bio: '22CS041',
+      image: '',
     },
   ];
 

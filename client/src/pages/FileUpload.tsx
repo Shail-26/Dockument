@@ -1,6 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, X, Download, Trash2, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
+import {ethers} from 'ethers';
+import { useWallet } from '../contexts/WalletContext';
+import contractABI from '../contractABI.js';
+const CONTRACT_ADDRESS = "0xA6002B2fd5A1052A3493fb4e839f7489Abf1bb57";
 
 // interface FileWithPreview extends File {
 //     preview?: string;
@@ -231,7 +235,9 @@ import { useDropzone } from 'react-dropzone';
 // import React, { useState } from 'react';
 // import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 
+
 export function FileUpload() {
+    const { walletAddress } = useWallet(); 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [response, setResponse] = useState<{
@@ -253,7 +259,7 @@ export function FileUpload() {
 
     const handleFormSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!selectedFile) return;
+        if (!selectedFile || !walletAddress) return;
 
         setIsUploading(true);
         setNotification(null);
@@ -276,27 +282,38 @@ export function FileUpload() {
             const ipfsData = await ipfsResponse.json();
             const { ipfsHash, url } = ipfsData;
 
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(
+                CONTRACT_ADDRESS, 
+                contractABI, 
+                signer
+            );
+            
+            const tx = await contract.uploadFile(ipfsHash);
+            await tx.wait();
+
             // Step 2: Store File Hash on Blockchain
-            const blockchainResponse = await fetch("http://localhost:5000/upload", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ fileHash: ipfsHash }),
-            });
+            // const blockchainResponse = await fetch("http://localhost:5000/upload", {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //     },
+            //     body: JSON.stringify({ fileHash: ipfsHash }),
+            // });
 
-            if (!blockchainResponse.ok) {
-                throw new Error("Failed to store file hash on blockchain.");
-            }
+            // if (!blockchainResponse.ok) {
+            //     throw new Error("Failed to store file hash on blockchain.");
+            // }
 
-            const blockchainData = await blockchainResponse.json();
+            // const blockchainData = await blockchainResponse.json();
+
             setResponse({
                 success: true,
                 ipfsHash,
                 url,
-                txHash: blockchainData.txHash,
+                txHash: tx.hash,
             });
-            console.log((response));
             setNotification({ type: "success", message: "File uploaded and stored on blockchain successfully!" });
 
         } catch (error) {
@@ -378,7 +395,7 @@ export function FileUpload() {
                                                 <a href={response.url} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View File</a>
                                             </td>
                                             <td className="py-4 text-gray-500 dark:text-gray-400">
-                                                <a href={`https://etherscan.io/tx/${response.txHash}`} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View Transaction</a>
+                                                <a href={`https://sepolia.etherscan.io/tx/${response.txHash}`} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View Transaction</a>
                                             </td>
                                         </tr>
                                     </tbody>
