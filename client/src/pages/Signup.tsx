@@ -11,23 +11,33 @@ export function Signup() {
   const [lastActivity, setLastActivity] = useState<number | null>(null);
 
   const checkWalletConnection = async () => {
-    if (window.ethereum) {
+    try {
+      if (!window.ethereum) {
+        console.warn("MetaMask not detected.");
+        return;
+      }
+  
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.listAccounts(); // Get connected accounts
-      if (accounts.length > 0) {
+      const accounts = await provider.send("eth_accounts", []); // More reliable way to get accounts
+  
+      if (accounts && accounts.length > 0) {
         setWalletAddress(accounts[0]);
-        localStorage.setItem('walletAddress', accounts[0]);
+        localStorage.setItem("walletAddress", accounts[0]);
       } else {
         setWalletAddress(null);
-        localStorage.removeItem('walletAddress');
-        localStorage.removeItem('lastActivity');
+        localStorage.removeItem("walletAddress");
+        localStorage.removeItem("lastActivity");
       }
+    } catch (error) {
+      console.error("Error checking wallet connection:", error);
     }
   };
+  
 
   // Check for existing wallet connection on component mount
   useEffect(() => {
     checkWalletConnection();
+    
     const storedAddress = localStorage.getItem('walletAddress');
     const storedTimestamp = localStorage.getItem('lastActivity');
 

@@ -12,6 +12,7 @@ import { Signup } from './pages/Signup';
 import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 import { FileUpload } from './pages/FileUpload';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -27,7 +28,9 @@ function App() {
                 <Route path="/features" element={<Features />} />
                 <Route path="/connect-wallet" element={<Signup />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/upload" element={<FileUpload />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/upload" element={<FileUpload />} />
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
