@@ -49,7 +49,7 @@ export function Home() {
                 description: 'Access your files anywhere, anytime with our responsive mobile interface.',
               },
             ].map((feature, index) => (
-              <div key={index} className="card hover:shadow-xl transition-shadow duration-300">
+              <div key={index} className="card hover:shadow-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 transition-shadow duration-300">
                 <feature.icon className="w-12 h-12 text-indigo-600 dark:text-indigo-400 mb-4" />
                 <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
                 <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
@@ -60,7 +60,7 @@ export function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gray-50 dark:bg-gray-900">
+      <section className="py-20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl font-bold text-center mb-12 font-poppins">
             What Our Users Say

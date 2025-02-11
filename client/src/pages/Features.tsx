@@ -94,7 +94,7 @@ export function Features() {
             {features.map((feature, index) => (
               <button
                 key={index}
-                className={`card text-left cursor-pointer transition-all duration-300 ${
+                className={`card bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-left cursor-pointer transition-all duration-300 ${
                   activeTab === index
                     ? 'ring-2 ring-indigo-500 dark:ring-indigo-400'
                     : 'hover:shadow-xl'
@@ -110,7 +110,7 @@ export function Features() {
 
           {/* Feature Details */}
           <div className="mt-16">
-            <div className="card">
+            <div className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
               <div className="flex items-center mb-6">
                 {React.createElement(features[activeTab].icon, {
                   className: "w-8 h-8 text-indigo-600 dark:text-indigo-400 mr-3"
