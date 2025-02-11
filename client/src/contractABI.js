@@ -1,4 +1,4 @@
-const contractAbi = [
+const ContractAbi = [
   {
     "anonymous": false,
     "inputs": [
@@ -116,4 +116,4 @@ const contractAbi = [
 ];
 
 
-export default contractAbi;
+export default ContractAbi;

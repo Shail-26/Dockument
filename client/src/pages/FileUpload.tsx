@@ -324,8 +324,8 @@ export function FileUpload() {
     };
 
     return (
-        <div className="page-transition pt-16">
-            <section className="py-12 bg-transparent">
+        <div className="page-transition pt-16 ">
+            <section className="py-12 bg-transparent ">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">
                         Upload File to IPFS & Blockchain
@@ -348,7 +348,7 @@ export function FileUpload() {
                         </div>
                     )}
 
-                    <form id="uploadForm" onSubmit={handleFormSubmit} className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <form id="uploadForm" onSubmit={handleFormSubmit} className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <div className="mb-4 flex items-center justify-center border-2 border-dashed border-gray-400 rounded-lg p-6">
                             <label htmlFor="fileInput" className="cursor-pointer flex flex-col items-center">
                                 <Upload className="w-10 h-10 text-gray-500 mb-2" />

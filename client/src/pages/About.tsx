@@ -24,7 +24,7 @@ export function About() {
   ];
 
   return (
-    <div className="page-transition pt-16">
+    <div className="page-transition pt-16 ">
       {/* Mission Section */}
       <section className="py-20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-900/20 dark:to-purple-900/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -72,9 +72,9 @@ export function About() {
           <h2 className="text-3xl font-bold text-center mb-12">Meet Our Team</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {teamMembers.map((member, index) => (
-              <div key={index} className="card hover:shadow-xl transition-all duration-300">
+              <div key={index} className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:shadow-xl transition-all duration-300">
                 <img
-                  src={member.image}
+                  src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
                   alt={member.name}
                   className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
                 />

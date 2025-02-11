@@ -26,7 +26,7 @@ export function Contact() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12">
             {/* Contact Form */}
-            <div className="card">
+            <div className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
               <h2 className="text-2xl font-bold mb-6">Send us a Message</h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
@@ -85,7 +85,7 @@ export function Contact() {
 
             {/* Contact Information */}
             <div className="space-y-8">
-              <div className="card">
+              <div className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
                 <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
                 <div className="space-y-4">
                   <div className="flex items-center">
@@ -103,7 +103,7 @@ export function Contact() {
                 </div>
               </div>
 
-              <div className="card">
+              <div className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
                 <h2 className="text-2xl font-bold mb-6">Follow Us</h2>
                 <div className="flex space-x-4">
                   <a href="#" className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
@@ -119,7 +119,7 @@ export function Contact() {
               </div>
 
               {/* Google Maps Embed */}
-              <div className="card overflow-hidden">
+              <div className="card overflow-hidden bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
                 <iframe
                   title="Office Location"
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387193.30596073366!2d-74.25986548248684!3d40.69714941932609!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2s!4v1647043435129!5m2!1sen!2s"
