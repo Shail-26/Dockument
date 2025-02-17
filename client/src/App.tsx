@@ -13,6 +13,7 @@ import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { DocumentPage } from './pages/DocumentPage';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/features" element={<Features />} />
                 <Route path="/connect-wallet" element={<Signup />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/folder/:a" element={<DocumentPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/upload" element={<FileUpload />} />
                 </Route>

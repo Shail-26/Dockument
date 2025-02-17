@@ -14,7 +14,7 @@ export function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/features" className="nav-link">Features</Link>
+            <Link to="/features" className="nav-link">My Document</Link>
             <Link to="/about" className="nav-link">About</Link>
             <Link to="/contact" className="nav-link">Contact</Link>
             <Link to="/upload" className="flex items-center space-x-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">
