@@ -160,5 +160,6 @@ const ContractAbi =  [
   }
 ]
 
+const CONTRACT_ADDRESS = "0x9e7Ef7339a77CD57F4D556AcE35Eef8214fc0E39";
 
-export default ContractAbi;
+export {ContractAbi, CONTRACT_ADDRESS};

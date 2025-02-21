@@ -3,8 +3,7 @@ import { Upload, X, Download, Trash2, FileText, CheckCircle, AlertCircle } from 
 import { useDropzone } from 'react-dropzone';
 import {ethers} from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
-import contractABI from '../contractABI.js';
-const CONTRACT_ADDRESS = "0x9e7Ef7339a77CD57F4D556AcE35Eef8214fc0E39";
+import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
 
 export function FileUpload() {
     const { walletAddress } = useWallet(); 
@@ -40,7 +39,7 @@ export function FileUpload() {
 
         try {
             // Step 1: Upload to IPFS
-            const ipfsResponse = await fetch("http://localhost:5000/upload-to-ipfs", {
+            const ipfsResponse = await fetch("http://localhost:5000/api/upload-to-ipfs", {
                 method: "POST",
                 body: formData,
             });
@@ -52,11 +51,13 @@ export function FileUpload() {
             const ipfsData = await ipfsResponse.json();
             const { ipfsHash, url } = ipfsData;
 
+            // Step 2: Send IPFS hash to backend for blockchain storage
+
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const contract = new ethers.Contract(
                 CONTRACT_ADDRESS, 
-                contractABI, 
+                ContractAbi, 
                 signer
             );
             

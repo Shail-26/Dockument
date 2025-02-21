@@ -17,7 +17,7 @@ export function DocumentPage() {
 
   const fetchUserFiles = async (wallet) => {
     try {
-      const apiResponse = await fetch(`http://localhost:5000/user-files/${wallet}`);
+      const apiResponse = await fetch(`http://localhost:5000/api/user-files/${wallet}`);
       if (!apiResponse.ok) {
         throw new Error("Failed to fetch user files from API.");
       }
