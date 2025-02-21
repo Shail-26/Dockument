@@ -13,6 +13,7 @@ import { NotFound } from './pages/NotFound';
 import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DocumentPage } from './pages/DocumentPage';
+import { MyDocuments } from './pages/DemoDocument';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/folder/:a" element={<DocumentPage />} />
                 <Route element={<ProtectedRoute />}>
+                  <Route path="/documents" element={<MyDocuments />} />
                   <Route path="/upload" element={<FileUpload />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
