@@ -7,7 +7,6 @@ import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Features } from './pages/Features';
-import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';

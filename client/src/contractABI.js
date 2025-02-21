@@ -1,4 +1,23 @@
-const ContractAbi = [
+const ContractAbi =  [
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "FileDeleted",
+    "type": "event"
+  },
   {
     "anonymous": false,
     "inputs": [
@@ -32,12 +51,38 @@ const ContractAbi = [
         "type": "string"
       }
     ],
+    "name": "deleteFile",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
     "name": "fileExists",
     "outputs": [
       {
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getFileCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -113,7 +158,7 @@ const ContractAbi = [
     "stateMutability": "nonpayable",
     "type": "function"
   }
-];
+]
 
 
 export default ContractAbi;

@@ -35,124 +35,171 @@ app.listen(PORT, () => {
 });
 
 
-const provider = new JsonRpcProvider(process.env.INFURA_API_URL);
-const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+// const provider = new JsonRpcProvider(process.env.INFURA_API_URL);
+const provider = new JsonRpcProvider("HTTP://127.0.0.1:7545");
+// const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const wallet = new ethers.Wallet(process.env.GANACHE_PRIVATE_KEY, provider);
 const contractAbi = [
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "fileHash",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "owner",
-          "type": "address"
-        }
-      ],
-      "name": "FileUploaded",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_fileHash",
-          "type": "string"
-        }
-      ],
-      "name": "fileExists",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_fileHash",
-          "type": "string"
-        }
-      ],
-      "name": "getFileOwner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_fileHash",
-          "type": "string"
-        }
-      ],
-      "name": "getFileTimestamp",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_user",
-          "type": "address"
-        }
-      ],
-      "name": "getUserFiles",
-      "outputs": [
-        {
-          "internalType": "string[]",
-          "name": "",
-          "type": "string[]"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "_fileHash",
-          "type": "string"
-        }
-      ],
-      "name": "uploadFile",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ];
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "FileDeleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "FileUploaded",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "deleteFile",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "fileExists",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getFileCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "getFileOwner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "getFileTimestamp",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserFiles",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "uploadFile",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+];
 
 const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractAbi, wallet);
 
@@ -252,32 +299,59 @@ app.post('/api/verify-wallet', async (req, res) => {
 
 
 app.get('/user-files/:address', limiter, async (req, res) => {
-    const { address } = req.params;
+  const { address } = req.params;
   
-    if (!ethers.isAddress(address)) {
-      return res.status(400).json({ success: false, error: "Invalid Ethereum address" });
-    }
+  if (!ethers.isAddress(address)) {
+    console.log("Debug: Invalid Ethereum address");
+    return res.status(400).json({ success: false, error: "Invalid Ethereum address" });
+  }
   
-    // Check cache first
-    const cachedFiles = cache.get(address);
-    if (cachedFiles) {
+  // Check cache first
+  const cachedFiles = cache.get(address);
+  if (cachedFiles) {
+      console.log("Debug: Returning cached files");
       return res.status(200).json({ success: true, files: cachedFiles });
-    }
-  
-    try {
+  }
+
+  try {
       const files = await contract.getUserFiles(address);
-      
+      console.log("Debug: Fetched files from contract", files);
+
+      // Check if files is an array
+      if (!Array.isArray(files)) {
+          console.error("Error: Expected an array of files");
+          return res.status(500).json({ success: false, error: "Expected an array of files" });
+      }
+
       // Cache the result
       cache.set(address, files);
-  
+
       if (files.length === 0) {
-        return res.status(200).json({ success: true, message: "No files found for this user", files: [] });
+          console.log("Debug: No files found for this user");
+          return res.status(200).json({ success: true, message: "No files found for this user", files: [] });
       }
-  
+
       res.status(200).json({ success: true, files });
-    } catch (error) {
+  } catch (error) {
       console.error("Error fetching user files:", error);
       res.status(500).json({ success: false, error: "Failed to fetch user files." });
-    }
-  });
+  }
+});
 
+
+app.post('/delete-file', async (req, res) => {
+  const { fileHash } = req.body;
+
+  if (!fileHash) {
+      return res.status(400).json({ error: 'File hash is required.' });
+  }
+
+  try {
+      const tx = await contract.deleteFile(fileHash);
+      await tx.wait();
+      res.status(200).json({ message: 'File Deleted successfully!', txHash: tx.hash });
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error.message });
+  }
+});
