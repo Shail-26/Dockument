@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { useWallet } from "../contexts/WalletContext";
 
-const CONTRACT_ADDRESS = "0x9e82f403f08cAF10Bbd57a3c09eAaa13E1A1f255";
+const CONTRACT_ADDRESS = "0x612a0569679Ea622ceAcf87b6b36380bF8a3bF3E";
 
 export function DocumentPage() {
   const [documents, setDocuments] = useState([]);

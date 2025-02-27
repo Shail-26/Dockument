@@ -14,6 +14,7 @@ import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DocumentPage } from './pages/DocumentPage';
 import { MyDocuments } from './pages/DemoDocument';
+import { IssuerDashboard } from './pages/issuer/IssuerDashboard';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                   <Route path="/documents" element={<MyDocuments />} />
                   <Route path="/upload" element={<FileUpload />} />
                 </Route>
+                <Route path="/issuer-dashboard" element={<IssuerDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
