@@ -1,43 +1,18 @@
-// pages/Signup.tsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 import { ethers } from 'ethers';
-import { useWallet } from '../contexts/WalletContext'; // Import useWallet
+import { useWallet } from '../contexts/WalletContext';
 
 export function Signup() {
-  const { walletAddress, setWalletAddress } = useWallet();
+  const { walletAddress, connectWallet: connectWalletFromContext, provider } = useWallet();
   const [isTermsChecked, setIsTermsChecked] = useState<boolean>(false);
   const [lastActivity, setLastActivity] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const ISSUER_ADDRESS = "0x52a2Ec069b79AE3394cEC467AEe4ca045CaDD7c7"; // Hardcoded issuer address
 
-  const checkWalletConnection = async () => {
-    try {
-      if (!window.ethereum) {
-        console.warn("MetaMask not detected.");
-        return;
-      }
-  
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_accounts", []); // More reliable way to get accounts
-  
-      if (accounts && accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-        localStorage.setItem("walletAddress", accounts[0]);
-      } else {
-        setWalletAddress(null);
-        localStorage.removeItem("walletAddress");
-        localStorage.removeItem("lastActivity");
-      }
-    } catch (error) {
-      console.error("Error checking wallet connection:", error);
-    }
-  };
-  
-
-  // Check for existing wallet connection on component mount
+  // Check stored wallet and last activity on mount
   useEffect(() => {
-    checkWalletConnection();
-    
     const storedAddress = localStorage.getItem('walletAddress');
     const storedTimestamp = localStorage.getItem('lastActivity');
 
@@ -47,67 +22,69 @@ export function Signup() {
       const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
 
       if (inactiveDuration < fiveDaysInMs) {
-        // User is still within the 5-day window
-        setWalletAddress(storedAddress);
         setLastActivity(parseInt(storedTimestamp, 10));
+        // Note: walletAddress is already set by WalletProvider, no need to set it here
+        // Redirect based on role (commented out as per original)
+        // if (storedAddress.toLowerCase() === ISSUER_ADDRESS.toLowerCase()) {
+        //   navigate('/issuer-dashboard');
+        // } else {
+        //   navigate('/documents');
+        // }
       } else {
-        // Clear storage if inactive for more than 5 days
         localStorage.removeItem('walletAddress');
         localStorage.removeItem('lastActivity');
-        setWalletAddress(null);
       }
     }
-  }, [setWalletAddress]);
+  }, [navigate]);
 
-  // Handle wallet connection
   const connectWallet = async () => {
     if (!isTermsChecked) {
       alert("Please agree to the terms and conditions.");
       return;
     }
 
-    if (window.ethereum) {
-      try {
-        // Request account access
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
+    try {
+      // Use the context's connectWallet function
+      await connectWalletFromContext();
 
-        // Set the wallet address and update last activity timestamp
-        setWalletAddress(address);
-        const currentTime = Date.now();
-        setLastActivity(currentTime);
-
-        // Save to localStorage
-        localStorage.setItem('walletAddress', address);
-        localStorage.setItem('lastActivity', currentTime.toString());
-
-        // Optional: Send the address to your backend for verification
-        const message = "Please sign this message to verify your identity.";
-        const signature = await signer.signMessage(message);
-
-        // Send address, message, and signature to your backend
-        const response = await fetch('http://localhost:5000/api/verify-wallet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, message, signature }),
-        });
-
-        if (response.ok) {
-          console.log('Wallet verified successfully!');
-        } else {
-          console.error('Wallet verification failed.');
-        }
-      } catch (error) {
-        console.error("User denied account access or error occurred:", error);
+      // After connection, provider and walletAddress should be set by WalletProvider
+      if (!provider || !walletAddress) {
+        throw new Error("Failed to connect wallet properly.");
       }
-    } else {
-      alert("Please install MetaMask!");
+
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      const currentTime = Date.now();
+      setLastActivity(currentTime);
+
+      localStorage.setItem('lastActivity', currentTime.toString());
+
+      const message = "Please sign this message to verify your identity.";
+      const signature = await signer.signMessage(message);
+
+      const response = await fetch('http://localhost:5000/api/verify-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+
+      if (response.ok) {
+        console.log('Wallet verified successfully!');
+        // Redirect based on issuer status (uncomment as needed)
+        // if (address.toLowerCase() === ISSUER_ADDRESS.toLowerCase()) {
+        //   navigate('/issuer-dashboard');
+        // } else {
+        //   navigate('/documents');
+        // }
+      } else {
+        console.error('Wallet verification failed.');
+      }
+    } catch (error) {
+      console.error("User denied account access or error occurred:", error);
+      alert("Failed to connect or verify wallet. Please try again.");
     }
   };
 
-  // Handle terms checkbox change
   const handleTermsCheckbox = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsTermsChecked(e.target.checked);
   };
@@ -119,7 +96,6 @@ export function Signup() {
           <h1 className="text-3xl font-bold text-center mb-8">Connect Your Wallet</h1>
 
           <div className="space-y-6">
-            {/* Connect Wallet Button */}
             <button
               onClick={connectWallet}
               disabled={!!walletAddress || !isTermsChecked}
@@ -131,14 +107,16 @@ export function Signup() {
               {walletAddress ? "Wallet Connected" : "Connect Wallet"}
             </button>
 
-            {/* Display Wallet Address */}
             {walletAddress && (
               <div className="text-center text-sm text-gray-600 dark:text-gray-400 break-words">
                 Connected Wallet: {walletAddress}
+                <br />
+                {walletAddress.toLowerCase() === ISSUER_ADDRESS.toLowerCase()
+                  ? "Role: Issuer"
+                  : "Role: Normal User"}
               </div>
             )}
 
-            {/* Terms and Conditions */}
             {!walletAddress && (
               <div className="flex items-center justify-center">
                 <input

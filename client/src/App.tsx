@@ -7,12 +7,14 @@ import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Features } from './pages/Features';
-import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { DocumentPage } from './pages/DocumentPage';
+import { MyDocuments } from './pages/DemoDocument';
+import { IssuerDashboard } from './pages/issuer/IssuerDashboard';
 
 function App() {
   return (
@@ -28,9 +30,12 @@ function App() {
                 <Route path="/features" element={<Features />} />
                 <Route path="/connect-wallet" element={<Signup />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/folder/:a" element={<DocumentPage />} />
                 <Route element={<ProtectedRoute />}>
+                  <Route path="/documents" element={<MyDocuments />} />
                   <Route path="/upload" element={<FileUpload />} />
                 </Route>
+                <Route path="/issuer-dashboard" element={<IssuerDashboard />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

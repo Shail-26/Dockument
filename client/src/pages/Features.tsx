@@ -1,134 +1,172 @@
-import React, { useState } from 'react';
-import { Shield, Share2, Smartphone, Lock, Clock, Database } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Folder, Plus, MoreVertical } from "lucide-react";
 
 export function Features() {
-  const [activeTab, setActiveTab] = useState(0);
+  const [folders, setFolders] = useState([]);
+  const [folderName, setFolderName] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
+  const [showMenu, setShowMenu] = useState(null);
+  const [renameFolder, setRenameFolder] = useState({ index: null, name: "" });
 
-  const features = [
-    {
-      icon: Shield,
-      title: 'Secure Storage',
-      description: 'Military-grade encryption ensures your files are protected at all times.',
-      details: [
-        'AES-256 encryption for all stored files',
-        'Blockchain verification for file integrity',
-        'Zero-knowledge encryption architecture',
-        'Regular security audits and updates',
-      ],
-    },
-    {
-      icon: Share2,
-      title: 'Easy Sharing',
-      description: 'Share files securely with customizable access controls.',
-      details: [
-        'Granular permission settings',
-        'Time-limited access links',
-        'Activity logging and tracking',
-        'Revocable access rights',
-      ],
-    },
-    {
-      icon: Smartphone,
-      title: 'Mobile Access',
-      description: 'Access your files from any device, anywhere.',
-      details: [
-        'Responsive web interface',
-        'Native mobile apps',
-        'Offline file access',
-        'Cross-device synchronization',
-      ],
-    },
-    {
-      icon: Lock,
-      title: 'Privacy Control',
-      description: 'You have complete control over your data privacy.',
-      details: [
-        'End-to-end encryption',
-        'Custom privacy settings',
-        'GDPR compliance',
-        'Data residency options',
-      ],
-    },
-    {
-      icon: Clock,
-      title: 'Version Control',
-      description: 'Track and manage file versions effortlessly.',
-      details: [
-        'Automatic version tracking',
-        'File history management',
-        'Version comparison',
-        'Restore previous versions',
-      ],
-    },
-    {
-      icon: Database,
-      title: 'Backup & Recovery',
-      description: 'Never lose your important files with automated backups.',
-      details: [
-        'Automated backup scheduling',
-        'Quick file recovery',
-        'Redundant storage',
-        'Disaster recovery planning',
-      ],
-    },
-  ];
+  const navigate = useNavigate();
+
+  // Load folders from localStorage on component mount
+  useEffect(() => {
+    const savedFolders = JSON.parse(localStorage.getItem("folders")) || [];
+    setFolders(savedFolders);
+  }, []);
+
+  // Save folders to localStorage whenever they change
+  const updateLocalStorage = (updatedFolders) => {
+    localStorage.setItem("folders", JSON.stringify(updatedFolders));
+  };
+
+  // Create Folder
+  const createFolder = () => {
+    if (folderName.trim()) {
+      const newFolders = [...folders, { name: folderName, files: [] }];
+      setFolders(newFolders);
+      updateLocalStorage(newFolders);
+      setFolderName("");
+      setShowPopup(false);
+    }
+  };
+
+  // Open Folder
+  const openFolder = (folderName) => {
+    navigate(`/folder/${folderName}`);
+  };
+
+  // Delete Folder (only when user confirms)
+  const deleteFolder = (index) => {
+    const confirmed = window.confirm("Are you sure you want to delete this folder?");
+    if (confirmed) {
+      const updatedFolders = folders.filter((_, i) => i !== index);
+      setFolders(updatedFolders);
+      updateLocalStorage(updatedFolders);
+      setShowMenu(null);
+    }
+  };
+
+  // Rename Folder
+  const renameFolderHandler = () => {
+    if (renameFolder.name.trim()) {
+      const updatedFolders = [...folders];
+      updatedFolders[renameFolder.index].name = renameFolder.name;
+      setFolders(updatedFolders);
+      updateLocalStorage(updatedFolders);
+      setRenameFolder({ index: null, name: "" });
+      setShowMenu(null);
+    }
+  };
 
   return (
-    <div className="page-transition pt-16">
-      {/* Hero Section */}
-      <section className="py-20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-900/20 dark:to-purple-900/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-transparent bg-clip-text">
-            Powerful Features for Secure Storage
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Discover how SecureChain Locker can transform your digital storage experience with our comprehensive feature set.
-          </p>
+    <div className="page-transition pt-16 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-200 dark:bg-gray-800 p-4 fixed h-[65vh] left-10 top-[17.5vh] rounded-lg shadow-lg flex flex-col justify-between">
+        <button
+          onClick={() => setShowPopup(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded flex items-center w-full"
+        >
+          <Plus className="w-5 h-5 mr-2" /> New Folder
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <section className="flex-1 py-16 bg-gray-100 dark:bg-gray-900 px-8 ml-80">
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-3xl font-bold text-center mb-8">Your Drive</h1>
+          <div className="grid grid-cols-4 gap-6 mt-8">
+            {folders.map((folder, index) => (
+              <div key={index} className="relative flex items-center p-3 border rounded-lg cursor-pointer bg-white dark:bg-gray-800 shadow-md">
+                {/* Folder Icon */}
+                <div onClick={() => openFolder(folder.name)} className="flex items-center gap-1 flex-1">
+                  <Folder className="w-10 h-6 text-blue-500" />
+                  <p className="font-medium">{folder.name}</p>
+                </div>
+
+                {/* Three-dot Menu Button */}
+                <button
+                  className="p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-700"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(showMenu === index ? null : index);
+                  }}
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                {/* Folder Options Menu */}
+                {showMenu === index && (
+                  <div className="absolute right-2 top-10 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-2">
+                    <button
+                      className="block px-4 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 w-full text-left"
+                      onClick={() => setRenameFolder({ index, name: folder.name })}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      className="block px-4 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 w-full text-left text-red-500"
+                      onClick={() => deleteFolder(index)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <button
-                key={index}
-                className={`card bg-gradient-to-br from-indigo-500/10 to-purple-500/10 text-left cursor-pointer transition-all duration-300 ${
-                  activeTab === index
-                    ? 'ring-2 ring-indigo-500 dark:ring-indigo-400'
-                    : 'hover:shadow-xl'
-                }`}
-                onClick={() => setActiveTab(index)}
-              >
-                <feature.icon className="w-12 h-12 text-indigo-600 dark:text-indigo-400 mb-4" />
-                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
+      {/* Folder Creation Popup */}
+      {showPopup && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-lg font-bold mb-4">Create New Folder</h2>
+            <input
+              type="text"
+              placeholder="Folder Name"
+              value={folderName}
+              onChange={(e) => setFolderName(e.target.value)}
+              className="border p-2 text-black rounded w-full mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowPopup(false)} className="px-4 py-2 bg-gray-300 text-gray-800 rounded">
+                Cancel
               </button>
-            ))}
-          </div>
-
-          {/* Feature Details */}
-          <div className="mt-16">
-            <div className="card bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-              <div className="flex items-center mb-6">
-                {React.createElement(features[activeTab].icon, {
-                  className: "w-8 h-8 text-indigo-600 dark:text-indigo-400 mr-3"
-                })}
-                <h3 className="text-2xl font-bold">{features[activeTab].title}</h3>
-              </div>
-              <ul className="grid md:grid-cols-2 gap-4">
-                {features[activeTab].details.map((detail, index) => (
-                  <li key={index} className="flex items-center">
-                    <div className="w-2 h-2 bg-indigo-600 dark:bg-indigo-400 rounded-full mr-3" />
-                    <span className="text-gray-600 dark:text-gray-300">{detail}</span>
-                  </li>
-                ))}
-              </ul>
+              <button onClick={createFolder} className="px-4 py-2 bg-blue-500 text-gray-800 rounded">
+                Create
+              </button>
             </div>
           </div>
         </div>
-      </section>
+      )}
+
+      {/* Rename Folder Popup */}
+      {renameFolder.index !== null && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-lg font-bold mb-4">Rename Folder</h2>
+            <input
+              type="text"
+              placeholder="New Folder Name"
+              value={renameFolder.name}
+              onChange={(e) => setRenameFolder({ ...renameFolder, name: e.target.value })}
+              className="border p-2 text-black rounded w-full mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setRenameFolder({ index: null, name: "" })} className="px-4 py-2 bg-gray-300 text-gray-800 rounded">
+                Cancel
+              </button>
+              <button onClick={renameFolderHandler} className="px-4 py-2 bg-blue-500 text-gray-800 rounded">
+                Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
