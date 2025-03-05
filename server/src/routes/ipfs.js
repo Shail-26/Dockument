@@ -19,8 +19,8 @@ router.post("/upload-to-ipfs", upload.single("file"), async (req, res) => {
         const response = await axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
-                pinata_api_key: process.env.PINATA_API_KEY,
-                pinata_secret_api_key: process.env.PINATA_SECRET_API_KEY,
+                PINATA_API_KEY: process.env.PINATA_API_KEY,
+                PINATA_SECRET_API_KEY: process.env.PINATA_SECRET_API_KEY,
             },
         });
 

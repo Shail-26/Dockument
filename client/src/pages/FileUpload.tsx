@@ -3,7 +3,7 @@ import { Upload, X, Download, Trash2, FileText, CheckCircle, AlertCircle } from 
 import { useDropzone } from 'react-dropzone';
 import {ethers} from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
-import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
+import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.js';
 
 export function FileUpload() {
     const { walletAddress } = useWallet(); 

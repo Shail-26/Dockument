@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet, Plus, Trash2, AlertCircle, CheckCircle, ExternalLink, Upload } from 'lucide-react';
 import { useWallet } from '../../contexts/WalletContext';
 import { Contract, ethers, isAddress } from 'ethers';
-import { ContractAbi, CONTRACT_ADDRESS } from '../../contract_info.jsx';
+import { ContractAbi, CONTRACT_ADDRESS } from "../../contract_info.jsx";
 
 // Hardcoded issuer address (temporary)
-const AUTHORIZED_ISSUER = "0x52a2Ec069b79AE3394cEC467AEe4ca045CaDD7c7";
+const AUTHORIZED_ISSUER = "0x25ec157063bA1cC84d3781DB5F556D827AF3d09e";
 
 interface Credential {
     fileHash: string;
