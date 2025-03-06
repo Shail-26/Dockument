@@ -171,6 +171,56 @@ const ContractAbi =  [
       {
         "indexed": false,
         "internalType": "string",
+        "name": "oldFileHash",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "newFileHash",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "field",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "issuer",
+        "type": "address"
+      }
+    ],
+    "name": "CredentialFieldRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "issuer",
+        "type": "address"
+      }
+    ],
+    "name": "CredentialFullyRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
         "name": "fileHash",
         "type": "string"
       },
@@ -194,25 +244,6 @@ const ContractAbi =  [
       }
     ],
     "name": "CredentialIssued",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "fileHash",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "issuer",
-        "type": "address"
-      }
-    ],
-    "name": "CredentialRevoked",
     "type": "event"
   },
   {
@@ -312,9 +343,9 @@ const ContractAbi =  [
         "type": "string"
       },
       {
-        "internalType": "bool",
-        "name": "includeMetadata",
-        "type": "bool"
+        "internalType": "string[]",
+        "name": "_fieldsToShare",
+        "type": "string[]"
       }
     ],
     "name": "getCredentialDetails",
@@ -341,7 +372,7 @@ const ContractAbi =  [
       },
       {
         "internalType": "string",
-        "name": "metadata",
+        "name": "sharedMetadata",
         "type": "string"
       }
     ],
@@ -421,6 +452,25 @@ const ContractAbi =  [
   {
     "inputs": [
       {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "getRevokedFields",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "_user",
         "type": "address"
@@ -452,6 +502,11 @@ const ContractAbi =  [
       {
         "internalType": "string",
         "name": "_metadata",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_mandatoryFields",
         "type": "string"
       }
     ],
@@ -495,6 +550,34 @@ const ContractAbi =  [
       }
     ],
     "name": "revokeCredential",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_oldFileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_newFileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_field",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_updatedMetadata",
+        "type": "string"
+      }
+    ],
+    "name": "revokeCredentialField",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -547,7 +630,6 @@ const ContractAbi =  [
     "type": "function"
   }
 ]
-
-const CONTRACT_ADDRESS = "0x612a0569679Ea622ceAcf87b6b36380bF8a3bF3E";
+const CONTRACT_ADDRESS = "0x6259C5105C2B3f2E3cD07d6E0d45f4AC4fb1cbFb";
 
 export {ContractAbi, CONTRACT_ADDRESS};
