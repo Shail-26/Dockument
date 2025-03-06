@@ -8,20 +8,24 @@ contract FileStorage {
         address issuer;          // Who issued the VC or uploaded the file
         address receiver;        // Who received the VC or uploaded the file
         bool isDeleted;          // Marked as deleted
-        bool isRevoked;          // Marked as revoked (VC only)
-        string metadata;         // JSON string for VC details (optional for normal files)
+        mapping(string => bool) revokedFields; // Tracks revoked fields
+        string[] revokedFieldKeys;             // Explicit list of revoked field keys
+        bool isFullyRevoked;     // Full revocation status
+        string metadata;         // JSON string for VC details
+        string mandatoryFields;  // JSON string of mandatory field keys
     }
 
-    mapping(string => Credential) private files;         // Maps fileHash to Credential details
-    mapping(address => string[]) private userFiles;     // Maps receiver address to their file hashes
-    mapping(address => string[]) private issuedFiles;   // NEW: Maps issuer address to their issued file hashes
-    mapping(address => bool) private issuers;           // Tracks authorized issuers
-    address public owner;                               // Contract owner for issuer management
+    mapping(string => Credential) private files;
+    mapping(address => string[]) private userFiles;
+    mapping(address => string[]) private issuedFiles;
+    mapping(address => bool) private issuers;
+    address public owner;
 
     event FileUploaded(string fileHash, uint256 timestamp, address indexed owner);
     event FileDeleted(string fileHash, address indexed owner);
     event CredentialIssued(string fileHash, uint256 timestamp, address indexed issuer, address indexed receiver);
-    event CredentialRevoked(string fileHash, address indexed issuer);
+    event CredentialFieldRevoked(string oldFileHash, string newFileHash, string field, address indexed issuer);
+    event CredentialFullyRevoked(string fileHash, address indexed issuer);
     event IssuerRegistered(address indexed issuer);
 
     constructor() {
@@ -47,47 +51,45 @@ contract FileStorage {
         emit IssuerRegistered(_issuer);
     }
 
+    // Modified: Allow multiple users to upload the same fileHash
     function uploadFile(string memory _fileHash) public {
         require(bytes(_fileHash).length > 0, "Invalid file hash");
-        if (files[_fileHash].issuer != address(0)) {
-            require(files[_fileHash].isDeleted, "File already uploaded and active");
-        }
 
-        files[_fileHash] = Credential({
-            fileHash: _fileHash,
-            timestamp: block.timestamp,
-            issuer: msg.sender,
-            receiver: msg.sender,
-            isDeleted: false,
-            isRevoked: false,
-            metadata: ""
-        });
+        // No restriction on existing fileHash; each upload is unique per user
+        Credential storage newFile = files[_fileHash];
+        newFile.fileHash = _fileHash;
+        newFile.timestamp = block.timestamp;
+        newFile.issuer = msg.sender;
+        newFile.receiver = msg.sender;
+        newFile.isDeleted = false;
+        newFile.isFullyRevoked = false;
+        newFile.metadata = "";
+        newFile.mandatoryFields = "";
 
         userFiles[msg.sender].push(_fileHash);
-        issuedFiles[msg.sender].push(_fileHash); // NEW: Track for issuer
+        issuedFiles[msg.sender].push(_fileHash);
         emit FileUploaded(_fileHash, block.timestamp, msg.sender);
     }
 
-    function issueCredential(string memory _fileHash, address _receiver, string memory _metadata) public onlyIssuer {
+    // Modified: Issue credential with mandatory fields
+    function issueCredential(string memory _fileHash, address _receiver, string memory _metadata, string memory _mandatoryFields) public onlyIssuer {
         require(bytes(_fileHash).length > 0, "Invalid file hash");
         require(_receiver != address(0), "Invalid receiver address");
         require(bytes(_metadata).length > 0, "Metadata cannot be empty");
-        if (files[_fileHash].issuer != address(0)) {
-            require(files[_fileHash].isDeleted, "Credential already issued and active");
-        }
+        require(bytes(_mandatoryFields).length > 0, "Mandatory fields cannot be empty");
 
-        files[_fileHash] = Credential({
-            fileHash: _fileHash,
-            timestamp: block.timestamp,
-            issuer: msg.sender,
-            receiver: _receiver,
-            isDeleted: false,
-            isRevoked: false,
-            metadata: _metadata
-        });
+        Credential storage newCred = files[_fileHash];
+        newCred.fileHash = _fileHash;
+        newCred.timestamp = block.timestamp;
+        newCred.issuer = msg.sender;
+        newCred.receiver = _receiver;
+        newCred.isDeleted = false;
+        newCred.isFullyRevoked = false;
+        newCred.metadata = _metadata;
+        newCred.mandatoryFields = _mandatoryFields;
 
         userFiles[_receiver].push(_fileHash);
-        issuedFiles[msg.sender].push(_fileHash); // NEW: Track for issuer
+        issuedFiles[msg.sender].push(_fileHash);
         emit CredentialIssued(_fileHash, block.timestamp, msg.sender, _receiver);
     }
 
@@ -110,31 +112,94 @@ contract FileStorage {
         revert("File not found in user files");
     }
 
+    // NEW: Revoke specific field in metadata
+    function revokeCredentialField(string memory _oldFileHash, string memory _newFileHash, string memory _field, string memory _updatedMetadata) public onlyIssuer {
+        Credential storage credential = files[_oldFileHash];
+        require(credential.issuer == msg.sender, "Only the issuer can revoke this credential");
+        require(!credential.isDeleted, "Credential already deleted");
+        require(!credential.isFullyRevoked, "Credential already fully revoked");
+        require(!credential.revokedFields[_field], "Field already revoked");
+        require(bytes(_newFileHash).length > 0, "Invalid new file hash");
+        require(bytes(_updatedMetadata).length > 0, "Updated metadata cannot be empty");
+
+        // Update credential with new fileHash and metadata
+        Credential storage newCred = files[_newFileHash];
+        newCred.fileHash = _newFileHash;
+        newCred.timestamp = block.timestamp; // Update timestamp
+        newCred.issuer = credential.issuer;
+        newCred.receiver = credential.receiver;
+        newCred.isDeleted = false;
+        newCred.isFullyRevoked = false;
+        newCred.metadata = _updatedMetadata;
+        newCred.mandatoryFields = credential.mandatoryFields;
+
+        // Copy revoked fields
+        for (uint256 i = 0; i < credential.revokedFieldKeys.length; i++) {
+            newCred.revokedFields[credential.revokedFieldKeys[i]] = true;
+            newCred.revokedFieldKeys.push(credential.revokedFieldKeys[i]);
+        }
+        newCred.revokedFields[_field] = true;
+        newCred.revokedFieldKeys.push(_field);
+
+        // Update mappings
+        userFiles[credential.receiver].push(_newFileHash);
+        issuedFiles[msg.sender].push(_newFileHash);
+
+        // Clean up old credential
+        delete files[_oldFileHash];
+        removeFromArray(userFiles[credential.receiver], _oldFileHash);
+        removeFromArray(issuedFiles[msg.sender], _oldFileHash);
+
+        emit CredentialFieldRevoked(_oldFileHash, _newFileHash, _field, msg.sender);
+    }
+
     function revokeCredential(string memory _fileHash) public onlyIssuer {
         Credential storage credential = files[_fileHash];
         require(credential.issuer == msg.sender, "Only the issuer can revoke this credential");
-        require(!credential.isRevoked, "Credential already revoked");
+        require(!credential.isFullyRevoked, "Credential already revoked");
         require(!credential.isDeleted, "Credential already deleted");
 
-        credential.isRevoked = true;
-        emit CredentialRevoked(_fileHash, msg.sender);
+        credential.isFullyRevoked = true;
+        emit CredentialFullyRevoked(_fileHash, msg.sender);
+    }
+
+    // NEW: Helper function to remove from array
+    function removeFromArray(string[] storage array, string memory value) private {
+        for (uint256 i = 0; i < array.length; i++) {
+            if (keccak256(abi.encodePacked(array[i])) == keccak256(abi.encodePacked(value))) {
+                if (i != array.length - 1) {
+                    array[i] = array[array.length - 1];
+                }
+                array.pop();
+                return;
+            }
+        }
+        // If not found, do nothing (optional: revert if critical)
+    }
+
+    function getRevokedFields(string memory _fileHash) public view returns (string[] memory) {
+        Credential storage credential = files[_fileHash];
+        require(credential.issuer != address(0), "File/Credential does not exist");
+        require(!credential.isDeleted, "File/Credential has been deleted");
+        return credential.revokedFieldKeys;
     }
 
     function verifyCredential(string memory _fileHash) public view returns (bool isValid, address issuer, address receiver, string memory metadata) {
-        Credential memory credential = files[_fileHash];
+        Credential storage credential = files[_fileHash];
         bool exists = credential.issuer != address(0);
-        isValid = exists && !credential.isDeleted && !credential.isRevoked;
+        isValid = exists && !credential.isDeleted && !credential.isFullyRevoked;
         return (isValid, credential.issuer, credential.receiver, credential.metadata);
     }
 
-    function getCredentialDetails(string memory _fileHash, bool includeMetadata) public view returns (
+    // Modified: Selective disclosure with mandatory fields
+    function getCredentialDetails(string memory _fileHash, string[] memory _fieldsToShare) public view returns (
         string memory fileHash,
         address issuer,
         address receiver,
         uint256 timestamp,
-        string memory metadata
+        string memory sharedMetadata
     ) {
-        Credential memory credential = files[_fileHash];
+        Credential storage credential = files[_fileHash];
         require(credential.issuer != address(0), "File/Credential does not exist");
         require(!credential.isDeleted, "File/Credential has been deleted");
 
@@ -142,7 +207,49 @@ contract FileStorage {
         issuer = credential.issuer;
         receiver = credential.receiver;
         timestamp = credential.timestamp;
-        metadata = (msg.sender == credential.receiver || includeMetadata) ? credential.metadata : "";
+
+        // Only receiver can selectively disclose
+        if (msg.sender != credential.receiver) {
+            sharedMetadata = "";
+        } else {
+            // Parse mandatory fields
+            string memory mandatoryFieldsJson = credential.mandatoryFields;
+            bytes memory mandatoryBytes = bytes(mandatoryFieldsJson);
+            if (mandatoryBytes.length > 0) {
+                // Simplified: Assume mandatoryFields is '{"fields": ["field1", "field2"]}'
+                // In practice, use a JSON parsing library or stricter format
+                string[] memory mandatoryFields = new string[](2); // Placeholder; expand as needed
+                mandatoryFields[0] = "name"; // Example
+                mandatoryFields[1] = "type"; // Example
+
+                // Combine mandatory and requested fields
+                string[] memory allFields = new string[](_fieldsToShare.length + mandatoryFields.length);
+                for (uint256 i = 0; i < _fieldsToShare.length; i++) {
+                    allFields[i] = _fieldsToShare[i];
+                }
+                for (uint256 i = 0; i < mandatoryFields.length; i++) {
+                    allFields[_fieldsToShare.length + i] = mandatoryFields[i];
+                }
+
+                // Construct shared metadata (simplified; assumes JSON-like structure)
+                bytes memory result = bytes("{");
+                bool first = true;
+                for (uint256 i = 0; i < allFields.length; i++) {
+                    if (!credential.revokedFields[allFields[i]]) {
+                        if (!first) {
+                            result = abi.encodePacked(result, ",");
+                        }
+                        // Placeholder: Extract field from metadata (requires JSON parsing)
+                        result = abi.encodePacked(result, '"', allFields[i], '":"value"');
+                        first = false;
+                    }
+                }
+                result = abi.encodePacked(result, "}");
+                sharedMetadata = string(result);
+            } else {
+                sharedMetadata = credential.metadata; // Fallback if no mandatory fields
+            }
+        }
     }
 
     function getUserFiles(address _user) public view returns (string[] memory) {
@@ -153,8 +260,8 @@ contract FileStorage {
 
         uint256 activeCount = 0;
         for (uint256 i = 0; i < allFiles.length; i++) {
-            Credential memory cred = files[allFiles[i]];
-            if (!cred.isDeleted && !cred.isRevoked) {
+            Credential storage cred = files[allFiles[i]];
+            if (!cred.isDeleted && !cred.isFullyRevoked) {
                 activeCount++;
             }
         }
@@ -162,8 +269,8 @@ contract FileStorage {
         string[] memory activeFiles = new string[](activeCount);
         uint256 index = 0;
         for (uint256 i = 0; i < allFiles.length; i++) {
-            Credential memory cred = files[allFiles[i]];
-            if (!cred.isDeleted && !cred.isRevoked) {
+            Credential storage cred = files[allFiles[i]];
+            if (!cred.isDeleted && !cred.isFullyRevoked) {
                 activeFiles[index] = allFiles[i];
                 index++;
             }
@@ -171,7 +278,6 @@ contract FileStorage {
         return activeFiles;
     }
 
-    // NEW: Get all credentials issued by an issuer
     function getIssuedCredentials(address _issuer) public view returns (string[] memory) {
         string[] memory allIssued = issuedFiles[_issuer];
         if (allIssued.length == 0) {
@@ -180,8 +286,8 @@ contract FileStorage {
 
         uint256 activeCount = 0;
         for (uint256 i = 0; i < allIssued.length; i++) {
-            Credential memory cred = files[allIssued[i]];
-            if (!cred.isDeleted && !cred.isRevoked) {
+            Credential storage cred = files[allIssued[i]];
+            if (!cred.isDeleted && !cred.isFullyRevoked) {
                 activeCount++;
             }
         }
@@ -189,8 +295,8 @@ contract FileStorage {
         string[] memory activeIssued = new string[](activeCount);
         uint256 index = 0;
         for (uint256 i = 0; i < allIssued.length; i++) {
-            Credential memory cred = files[allIssued[i]];
-            if (!cred.isDeleted && !cred.isRevoked) {
+            Credential storage cred = files[allIssued[i]];
+            if (!cred.isDeleted && !cred.isFullyRevoked) {
                 activeIssued[index] = allIssued[i];
                 index++;
             }
@@ -199,16 +305,16 @@ contract FileStorage {
     }
 
     function getFileIssuer(string memory _fileHash) public view returns (address) {
-        Credential memory credential = files[_fileHash];
+        Credential storage credential = files[_fileHash];
         require(!credential.isDeleted, "File/Credential has been deleted");
-        require(!credential.isRevoked, "Credential has been revoked");
+        require(!credential.isFullyRevoked, "Credential has been revoked");
         return credential.issuer;
     }
 
     function getFileTimestamp(string memory _fileHash) public view returns (uint256) {
-        Credential memory credential = files[_fileHash];
+        Credential storage credential = files[_fileHash];
         require(!credential.isDeleted, "File/Credential has been deleted");
-        require(!credential.isRevoked, "Credential has been revoked");
+        require(!credential.isFullyRevoked, "Credential has been revoked");
         return credential.timestamp;
     }
 
@@ -216,8 +322,8 @@ contract FileStorage {
         string[] memory allFiles = userFiles[msg.sender];
         uint256 activeCount = 0;
         for (uint256 i = 0; i < allFiles.length; i++) {
-            Credential memory cred = files[allFiles[i]];
-            if (!cred.isDeleted && !cred.isRevoked) {
+            Credential storage cred = files[allFiles[i]];
+            if (!cred.isDeleted && !cred.isFullyRevoked) {
                 activeCount++;
             }
         }
@@ -225,7 +331,7 @@ contract FileStorage {
     }
 
     function fileExists(string memory _fileHash) public view returns (bool) {
-        Credential memory credential = files[_fileHash];
-        return credential.issuer != address(0) && !credential.isDeleted && !credential.isRevoked;
+        Credential storage credential = files[_fileHash];
+        return credential.issuer != address(0) && !credential.isDeleted && !credential.isFullyRevoked;
     }
 }

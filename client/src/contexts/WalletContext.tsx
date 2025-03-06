@@ -8,20 +8,21 @@ interface WalletContextType {
     provider: BrowserProvider | null;
     isConnecting: boolean;
     error: string | null;
+    refreshFiles: () => void; // NEW: Trigger to refresh file data
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
     const [walletAddress, setWalletAddress] = useState<string | null>(() => {
-        // Restore wallet address from localStorage (from old version)
         return localStorage.getItem('walletAddress') || null;
     });
     const [provider, setProvider] = useState<BrowserProvider | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0); // NEW: State to trigger refresh
 
-    // Persist wallet address to localStorage (from old version)
+    // Persist wallet address to localStorage
     useEffect(() => {
         if (walletAddress) {
             localStorage.setItem('walletAddress', walletAddress);
@@ -30,7 +31,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
     }, [walletAddress]);
 
-    // Check if wallet is already connected on mount (improved from both)
+    // Check if wallet is already connected on mount
     useEffect(() => {
         const checkConnection = async () => {
             if (window.ethereum) {
@@ -50,15 +51,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         checkConnection();
     }, []);
 
-    // Listen for account changes (combined logic from both)
+    // Listen for account changes
     useEffect(() => {
         if (window.ethereum) {
             const handleAccountsChanged = (accounts: string[]) => {
                 if (accounts.length === 0) {
                     disconnectWallet();
                 } else if (accounts[0] !== walletAddress) {
-                    // Only update if the account actually changes
                     setWalletAddress(accounts[0]);
+                    setRefreshTrigger(prev => prev + 1); // NEW: Refresh files on account change
                 }
             };
 
@@ -68,7 +69,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                 window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
             };
         }
-    }, [walletAddress]); // Add walletAddress as dependency to ensure updates
+    }, [walletAddress]);
 
     const connectWallet = async () => {
         setIsConnecting(true);
@@ -85,13 +86,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             if (accounts.length > 0) {
                 setWalletAddress(accounts[0]);
                 setProvider(ethProvider);
+                setRefreshTrigger(prev => prev + 1); // NEW: Refresh files after connecting
             } else {
                 throw new Error('No accounts found. Please check your MetaMask configuration.');
             }
         } catch (err) {
             console.error('Failed to connect wallet:', err);
             setError(err instanceof Error ? err.message : 'Failed to connect wallet');
-            setWalletAddress(null); // Reset on failure (consistent with old behavior)
+            setWalletAddress(null);
         } finally {
             setIsConnecting(false);
         }
@@ -100,7 +102,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const disconnectWallet = () => {
         setWalletAddress(null);
         setProvider(null);
-        localStorage.removeItem('walletAddress'); // Ensure localStorage is cleared (from old version)
+        localStorage.removeItem('walletAddress');
+        setRefreshTrigger(prev => prev + 1); // NEW: Refresh files after disconnecting
+    };
+
+    const refreshFiles = () => {
+        setRefreshTrigger(prev => prev + 1); // NEW: Function to manually trigger refresh
     };
 
     return (
@@ -112,6 +119,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                 provider,
                 isConnecting,
                 error,
+                refreshFiles, // NEW: Expose refreshFiles in context
             }}
         >
             {children}
@@ -127,7 +135,6 @@ export function useWallet() {
     return context;
 }
 
-// TypeScript declaration for window.ethereum
 declare global {
     interface Window {
         ethereum: any;

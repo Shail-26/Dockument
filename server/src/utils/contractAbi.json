@@ -10,6 +10,56 @@
             {
                 "indexed": false,
                 "internalType": "string",
+                "name": "oldFileHash",
+                "type": "string"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "newFileHash",
+                "type": "string"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "field",
+                "type": "string"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "issuer",
+                "type": "address"
+            }
+        ],
+        "name": "CredentialFieldRevoked",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "fileHash",
+                "type": "string"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "issuer",
+                "type": "address"
+            }
+        ],
+        "name": "CredentialFullyRevoked",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "string",
                 "name": "fileHash",
                 "type": "string"
             },
@@ -33,25 +83,6 @@
             }
         ],
         "name": "CredentialIssued",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "string",
-                "name": "fileHash",
-                "type": "string"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "issuer",
-                "type": "address"
-            }
-        ],
-        "name": "CredentialRevoked",
         "type": "event"
     },
     {
@@ -151,9 +182,9 @@
                 "type": "string"
             },
             {
-                "internalType": "bool",
-                "name": "includeMetadata",
-                "type": "bool"
+                "internalType": "string[]",
+                "name": "_fieldsToShare",
+                "type": "string[]"
             }
         ],
         "name": "getCredentialDetails",
@@ -180,7 +211,7 @@
             },
             {
                 "internalType": "string",
-                "name": "metadata",
+                "name": "sharedMetadata",
                 "type": "string"
             }
         ],
@@ -260,6 +291,25 @@
     {
         "inputs": [
             {
+                "internalType": "string",
+                "name": "_fileHash",
+                "type": "string"
+            }
+        ],
+        "name": "getRevokedFields",
+        "outputs": [
+            {
+                "internalType": "string[]",
+                "name": "",
+                "type": "string[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "address",
                 "name": "_user",
                 "type": "address"
@@ -291,6 +341,11 @@
             {
                 "internalType": "string",
                 "name": "_metadata",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_mandatoryFields",
                 "type": "string"
             }
         ],
@@ -334,6 +389,34 @@
             }
         ],
         "name": "revokeCredential",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_oldFileHash",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_newFileHash",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_field",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_updatedMetadata",
+                "type": "string"
+            }
+        ],
+        "name": "revokeCredentialField",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

@@ -5,7 +5,6 @@ import { useWallet } from '../../contexts/WalletContext';
 import { Contract, ethers, isAddress } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from '../../contract_info.jsx';
 
-// Hardcoded issuer address (temporary)
 const AUTHORIZED_ISSUER = "0x52a2Ec069b79AE3394cEC467AEe4ca045CaDD7c7";
 
 interface Credential {
@@ -14,18 +13,20 @@ interface Credential {
     metadata: string;
     status: 'Active' | 'Revoked' | 'Deleted';
     timestamp: number;
+    revokedFields: string[];
 }
 
 interface FormField {
     key: string;
     value: string;
+    isMandatory?: boolean;
 }
 
 export function IssuerDashboard() {
     const navigate = useNavigate();
-    const { walletAddress, provider } = useWallet();
+    const { walletAddress, provider, refreshFiles } = useWallet();
 
-    const [fields, setFields] = useState<FormField[]>([{ key: '', value: '' }]);
+    const [fields, setFields] = useState<FormField[]>([{ key: '', value: '', isMandatory: false }]);
     const [receiverAddress, setReceiverAddress] = useState('');
     const [isValidReceiver, setIsValidReceiver] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,6 +37,7 @@ export function IssuerDashboard() {
     } | null>(null);
     const [credentials, setCredentials] = useState<Credential[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [revokeField, setRevokeField] = useState<string>('');
 
     useEffect(() => {
         if (walletAddress && walletAddress.toLowerCase() !== AUTHORIZED_ISSUER.toLowerCase()) {
@@ -47,7 +49,6 @@ export function IssuerDashboard() {
         setIsValidReceiver(isAddress(receiverAddress));
     }, [receiverAddress]);
 
-    // Fetch issued credentials from the contract
     useEffect(() => {
         const fetchCredentials = async () => {
             if (!walletAddress || !provider) return;
@@ -60,7 +61,8 @@ export function IssuerDashboard() {
                 const creds: Credential[] = [];
                 for (const fileHash of issuedHashes) {
                     const [isValid, issuer, receiver, metadata] = await contract.verifyCredential(fileHash);
-                    const details = await contract.getCredentialDetails(fileHash, true);
+                    const details = await contract.getCredentialDetails(fileHash, []);
+                    const revokedFields = await contract.getRevokedFields(fileHash);
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
 
                     creds.push({
@@ -68,7 +70,8 @@ export function IssuerDashboard() {
                         receiver: receiver,
                         metadata: metadata,
                         status: status,
-                        timestamp: Number(details.timestamp) * 1000, // Convert to milliseconds
+                        timestamp: Number(details.timestamp) * 1000,
+                        revokedFields: revokedFields,
                     });
                 }
 
@@ -85,10 +88,10 @@ export function IssuerDashboard() {
     }, [walletAddress, provider]);
 
     const addField = () => {
-        setFields([...fields, { key: '', value: '' }]);
+        setFields([...fields, { key: '', value: '', isMandatory: false }]);
     };
 
-    const updateField = (index: number, type: 'key' | 'value', value: string) => {
+    const updateField = (index: number, type: 'key' | 'value' | 'isMandatory', value: string | boolean) => {
         const updatedFields = fields.map((field, i) =>
             i === index ? { ...field, [type]: value } : field
         );
@@ -119,6 +122,9 @@ export function IssuerDashboard() {
             }, {} as Record<string, string>);
             const metadata = JSON.stringify(metadataObj);
 
+            const mandatoryFields = fields.filter(f => f.isMandatory).map(f => f.key);
+            const mandatoryFieldsJson = JSON.stringify({ fields: mandatoryFields });
+
             const fileContent = JSON.stringify(metadataObj, null, 2);
             const blob = new Blob([fileContent], { type: 'application/json' });
             const formData = new FormData();
@@ -138,7 +144,7 @@ export function IssuerDashboard() {
 
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-            const tx = await contract.issueCredential(ipfsHash, receiverAddress, metadata);
+            const tx = await contract.issueCredential(ipfsHash, receiverAddress, metadata, mandatoryFieldsJson);
 
             setNotification({
                 type: 'success',
@@ -154,12 +160,13 @@ export function IssuerDashboard() {
                 txHash: tx.hash,
             });
 
-            setFields([{ key: '', value: '' }]);
+            setFields([{ key: '', value: '', isMandatory: false }]);
             setReceiverAddress('');
 
-            // Refresh credentials
             const [isValid, , receiver, meta] = await contract.verifyCredential(ipfsHash);
-            const details = await contract.getCredentialDetails(ipfsHash, true);
+            const details = await contract.getCredentialDetails(ipfsHash, []);
+            const revokedFields = await contract.getRevokedFields(ipfsHash);
+
             setCredentials(prev => [
                 ...prev,
                 {
@@ -168,6 +175,7 @@ export function IssuerDashboard() {
                     metadata: meta,
                     status: 'Active',
                     timestamp: Number(details.timestamp) * 1000,
+                    revokedFields: revokedFields,
                 },
             ]);
         } catch (error) {
@@ -175,6 +183,89 @@ export function IssuerDashboard() {
             setNotification({
                 type: 'error',
                 message: error instanceof Error ? error.message : 'Failed to issue credential',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRevokeCredentialField = async (fileHash: string, field: string) => {
+        if (!provider || !walletAddress || !field) return;
+
+        setIsSubmitting(true);
+        setNotification(null);
+
+        try {
+            const signer = await provider.getSigner();
+            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
+
+            // Get current credential data
+            const [isValid, , receiver, metadata] = await contract.verifyCredential(fileHash);
+            let parsedMetadata = JSON.parse(metadata);
+            if (!parsedMetadata[field]) {
+                throw new Error(`Field "${field}" does not exist in metadata`);
+            }
+
+            // Remove the field from metadata
+            delete parsedMetadata[field];
+            const updatedMetadata = JSON.stringify(parsedMetadata);
+
+            // Upload updated metadata to IPFS
+            const fileContent = JSON.stringify(parsedMetadata, null, 2);
+            const blob = new Blob([fileContent], { type: 'application/json' });
+            const formData = new FormData();
+            formData.append('file', blob, 'credential.json');
+
+            const ipfsResponse = await fetch('http://localhost:5000/api/upload-to-ipfs', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!ipfsResponse.ok) {
+                throw new Error('Failed to upload updated metadata to IPFS');
+            }
+
+            const ipfsData = await ipfsResponse.json();
+            const newIpfsHash = ipfsData.ipfsHash;
+
+            // Update contract with new fileHash and metadata
+            const tx = await contract.revokeCredentialField(fileHash, newIpfsHash, field, updatedMetadata);
+
+            setNotification({
+                type: 'success',
+                message: `Revoking field "${field}" and updating file submitted. Waiting for confirmation...`,
+                txHash: tx.hash,
+            });
+
+            await tx.wait();
+            
+            setNotification({
+                type: 'success',
+                message: `Field "${field}" revoked and file updated successfully!`,
+                txHash: tx.hash,
+            });
+            refreshFiles();
+
+            // Update local state
+            setCredentials(prev =>
+                prev.map(cred => {
+                    if (cred.fileHash === fileHash) {
+                        return {
+                            ...cred,
+                            fileHash: newIpfsHash,
+                            metadata: updatedMetadata,
+                            revokedFields: [...cred.revokedFields, field],
+                        };
+                    }
+                    return cred;
+                })
+            );
+            setRevokeField('');
+        } catch (error) {
+            console.error('Error revoking credential field:', error);
+            setNotification({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Failed to revoke field',
             });
         } finally {
             setIsSubmitting(false);
@@ -194,7 +285,7 @@ export function IssuerDashboard() {
 
             setNotification({
                 type: 'success',
-                message: 'Revocation submitted. Waiting for confirmation...',
+                message: 'Full revocation submitted. Waiting for confirmation...',
                 txHash: tx.hash,
             });
 
@@ -202,9 +293,10 @@ export function IssuerDashboard() {
 
             setNotification({
                 type: 'success',
-                message: 'Credential revoked successfully!',
+                message: 'Credential fully revoked successfully!',
                 txHash: tx.hash,
             });
+            refreshFiles();
 
             setCredentials(prev =>
                 prev.map(cred =>
@@ -280,7 +372,7 @@ export function IssuerDashboard() {
                                 <p>{notification.message}</p>
                                 {notification.txHash && (
                                     <a
-                                        href={`http://127.0.0.1:8545/tx/${notification.txHash}`} // Hardhat local doesn’t use etherscan; update for testnet
+                                        href={`http://127.0.0.1:8545/tx/${notification.txHash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center mt-1 text-sm underline"
@@ -318,6 +410,15 @@ export function IssuerDashboard() {
                                             className="input-field flex-1"
                                             required
                                         />
+                                        <label className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={field.isMandatory}
+                                                onChange={(e) => updateField(index, 'isMandatory', e.target.checked)}
+                                                className="mr-2"
+                                            />
+                                            Mandatory
+                                        </label>
                                         {fields.length > 1 && (
                                             <button
                                                 type="button"
@@ -403,6 +504,7 @@ export function IssuerDashboard() {
                                             <th className="pb-3 font-semibold">File Hash</th>
                                             <th className="pb-3 font-semibold">Receiver</th>
                                             <th className="pb-3 font-semibold">Metadata</th>
+                                            <th className="pb-3 font-semibold">Revoked Fields</th>
                                             <th className="pb-3 font-semibold">Status</th>
                                             <th className="pb-3 font-semibold">Issued On</th>
                                             <th className="pb-3 font-semibold">Actions</th>
@@ -448,6 +550,11 @@ export function IssuerDashboard() {
                                                         </div>
                                                     </td>
                                                     <td className="py-4">
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                            {credential.revokedFields.length > 0 ? credential.revokedFields.join(', ') : 'None'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-4">
                                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${credential.status === 'Active'
                                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                                             : credential.status === 'Revoked'
@@ -460,7 +567,26 @@ export function IssuerDashboard() {
                                                     <td className="py-4 text-gray-500 dark:text-gray-400">
                                                         {formatDate(credential.timestamp)}
                                                     </td>
-                                                    <td className="py-4">
+                                                    <td className="py-4 flex space-x-2">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Field to revoke"
+                                                            value={revokeField}
+                                                            onChange={(e) => setRevokeField(e.target.value)}
+                                                            className="input-field w-32 text-sm"
+                                                            disabled={credential.status !== 'Active' || isSubmitting}
+                                                        />
+                                                        <button
+                                                            onClick={() => handleRevokeCredentialField(credential.fileHash, revokeField)}
+                                                            disabled={credential.status !== 'Active' || isSubmitting || !revokeField}
+                                                            className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting && revokeField
+                                                                ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                                : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                                                                }`}
+                                                            title="Revoke Field"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
                                                         <button
                                                             onClick={() => handleRevokeCredential(credential.fileHash)}
                                                             disabled={credential.status !== 'Active' || isSubmitting}
@@ -468,7 +594,7 @@ export function IssuerDashboard() {
                                                                 ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
                                                                 : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
                                                                 }`}
-                                                            title={credential.status === 'Active' ? 'Revoke Credential' : 'Already Revoked'}
+                                                            title="Revoke Entire Credential"
                                                         >
                                                             <Trash2 className="w-5 h-5" />
                                                         </button>
