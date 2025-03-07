@@ -37,7 +37,7 @@ export function MyDocuments() {
                     const [isValid, issuer, receiver, metadata] = await contract.verifyCredential(fileHash);
                     const details = await contract.getCredentialDetails(fileHash, []); // Empty array for full metadata
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
-    
+                    console.log(`Metadata for ${fileHash}:`, metadata);
                     docs.push({
                         fileHash: fileHash,
                         metadata: metadata,
@@ -196,19 +196,25 @@ export function MyDocuments() {
                         <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
                         <p><strong>Status:</strong> {selectedDoc.status}</p>
                         <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
+
                         <div className="mt-4">
-                            <strong>Metadata:</strong>
-                            <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto max-h-60">
-                                {JSON.stringify(JSON.parse(selectedDoc.metadata), null, 2)}
-                            </pre>
-                        </div>
-                        <iframe src={selectedDoc.url} className="w-full h-[400px] mt-4" title="Document Preview" />
+                        <a
+                            href={selectedDoc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline font-semibold"
+                        >
+                            Open Document in New Tab
+                        </a>
+                    </div>
+
                         <button className="mt-4 bg-red-500 text-white px-4 py-2 rounded" onClick={() => setSelectedDoc(null)}>
                             Close
                         </button>
                     </div>
                 </div>
             )}
+
         </div>
     );
 }

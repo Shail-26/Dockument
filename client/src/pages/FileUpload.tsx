@@ -11,6 +11,7 @@ export function FileUpload() {
     const [isUploading, setIsUploading] = useState(false);
     const [response, setResponse] = useState<{
         success: boolean;
+        filename: string;
         ipfsHash: string;
         url: string;
         txHash?: string;
@@ -49,7 +50,7 @@ export function FileUpload() {
             }
 
             const ipfsData = await ipfsResponse.json();
-            const { ipfsHash, url } = ipfsData;
+            const { filename, ipfsHash, url } = ipfsData;
 
             // Step 2: Send IPFS hash to backend for blockchain storage
 
@@ -66,6 +67,7 @@ export function FileUpload() {
 
             setResponse({
                 success: true,
+                filename,
                 ipfsHash,
                 url,
                 txHash: tx.hash,
