@@ -4,7 +4,7 @@ import { Wallet, Plus, Trash2, AlertCircle, CheckCircle, ExternalLink, Upload } 
 import { useWallet } from '../../contexts/WalletContext';
 import { Contract, ethers, isAddress } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from "../../contract_info.jsx";
-
+import { parseUnits } from "ethers";
 // Hardcoded issuer address (temporary)
 const AUTHORIZED_ISSUER = "0x25ec157063bA1cC84d3781DB5F556D827AF3d09e";
 
@@ -145,7 +145,23 @@ export function IssuerDashboard() {
 
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-            const tx = await contract.issueCredential(ipfsHash, receiverAddress, metadata, mandatoryFieldsJson);
+            console.log("Issuing credential with values:", {
+                ipfsHash,
+                receiverAddress,
+                metadata,
+                mandatoryFieldsJson
+            });
+            
+
+            const tx = await contract.issueCredential(
+                ipfsHash,
+                receiverAddress,
+                metadata,
+                mandatoryFieldsJson,
+            );
+
+            
+
 
             setNotification({
                 type: 'success',

@@ -334,10 +334,4 @@ contract FileStorage {
         Credential storage credential = files[_fileHash];
         return credential.issuer != address(0) && !credential.isDeleted && !credential.isFullyRevoked;
     }
-<<<<<<< HEAD
 }
-
-
-=======
-}
->>>>>>> f61bc096d630e67ae055d42d941a56747ebfa450
