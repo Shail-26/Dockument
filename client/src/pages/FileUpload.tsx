@@ -12,7 +12,7 @@ export function FileUpload() {
     const [response, setResponse] = useState<{
         success: boolean;
         filename: string;
-        ipfsHash: string;
+        metadataCID: string;
         url: string;
         txHash?: string;
     } | null>(null);
@@ -50,7 +50,7 @@ export function FileUpload() {
             }
 
             const ipfsData = await ipfsResponse.json();
-            const { filename, ipfsHash, url } = ipfsData;
+            const { filename, metadataCID, url } = ipfsData;
 
             // Step 2: Send IPFS hash to backend for blockchain storage
 
@@ -62,13 +62,13 @@ export function FileUpload() {
                 signer
             );
             
-            const tx = await contract.uploadFile(ipfsHash);
+            const tx = await contract.uploadFile(metadataCID);
             await tx.wait();
 
             setResponse({
                 success: true,
                 filename,
-                ipfsHash,
+                metadataCID,
                 url,
                 txHash: tx.hash,
             });
@@ -148,7 +148,7 @@ export function FileUpload() {
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         <tr key="1" className="group">
                                             <td className="py-4">{response.success ? "Uploaded Successfully" : "Failed to Upload"}</td>
-                                            <td className="py-4 text-gray-500 dark:text-gray-400">{response.ipfsHash}</td>
+                                            <td className="py-4 text-gray-500 dark:text-gray-400">{response.metadataCID}</td>
                                             <td className="py-4 text-gray-500 dark:text-gray-400">
                                                 <a href={response.url} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View File</a>
                                             </td>

@@ -5,11 +5,12 @@ import { useWallet } from '../../contexts/WalletContext';
 import { Contract, ethers, isAddress } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from "../../contract_info.jsx";
 import { parseUnits } from "ethers";
+import  FetchFileHash  from "../../components/FetchFileHash";
 // Hardcoded issuer address (temporary)
 const AUTHORIZED_ISSUER = "0x25ec157063bA1cC84d3781DB5F556D827AF3d09e";
 
 interface Credential {
-    fileHash: string;
+    metadataCID: string;
     receiver: string;
     metadata: string;
     status: 'Active' | 'Revoked' | 'Deleted';
@@ -67,7 +68,7 @@ export function IssuerDashboard() {
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
 
                     creds.push({
-                        fileHash: fileHash,
+                        metadataCID: fileHash,
                         receiver: receiver,
                         metadata: metadata,
                         status: status,
@@ -107,87 +108,103 @@ export function IssuerDashboard() {
 
     const handleIssueCredential = async (e: React.FormEvent) => {
         e.preventDefault();
-
+        
         if (!isValidReceiver || !provider || !walletAddress || fields.some(f => !f.key || !f.value)) {
             setNotification({ type: 'error', message: 'Please fill all fields and provide a valid receiver address' });
             return;
         }
-
+    
         setIsSubmitting(true);
         setNotification(null);
-
+    
         try {
             const metadataObj = fields.reduce((acc, field) => {
                 acc[field.key] = field.value;
                 return acc;
             }, {} as Record<string, string>);
             const metadata = JSON.stringify(metadataObj);
-
+    
             const mandatoryFields = fields.filter(f => f.isMandatory).map(f => f.key);
             const mandatoryFieldsJson = JSON.stringify({ fields: mandatoryFields });
-
+    
+            // Prepare metadata file for IPFS
             const fileContent = JSON.stringify(metadataObj, null, 2);
             const blob = new Blob([fileContent], { type: 'application/json' });
             const formData = new FormData();
             formData.append('file', blob, 'credential.json');
-
+    
+            // Upload metadata to IPFS
             const ipfsResponse = await fetch('http://localhost:5000/api/upload-to-ipfs', {
                 method: 'POST',
                 body: formData,
             });
-
+    
             if (!ipfsResponse.ok) {
-                throw new Error('Failed to upload to IPFS');
+                throw new Error('Failed to upload metadata to IPFS');
             }
-
+    
             const ipfsData = await ipfsResponse.json();
-            const ipfsHash = ipfsData.ipfsHash;
-
+            console.log("IPFS Data:", ipfsData);
+            const metadataCID = ipfsData.metadataCID;
+            const filename = 'credential.json'; // Ensure filename is stored
+    
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-            console.log("Issuing credential with values:", {
-                ipfsHash,
+    
+            if (!contract || !contract.issueCredential) {
+                console.error("Contract or issueCredential function is undefined!");
+                throw new Error("Smart contract is not properly initialized.");
+            }
+    
+            console.log("Issuing credential with:", {
+                metadataCID,
+                filename,
                 receiverAddress,
                 metadata,
                 mandatoryFieldsJson
             });
-            
-
+    
             const tx = await contract.issueCredential(
-                ipfsHash,
+                metadataCID,
                 receiverAddress,
                 metadata,
-                mandatoryFieldsJson,
+                mandatoryFieldsJson
             );
-
-            
-
-
+    
             setNotification({
                 type: 'success',
                 message: 'Transaction submitted. Waiting for confirmation...',
                 txHash: tx.hash,
             });
-
+    
             await tx.wait();
-
+    
             setNotification({
                 type: 'success',
                 message: 'Credential issued successfully!',
                 txHash: tx.hash,
             });
-
+    
             setFields([{ key: '', value: '', isMandatory: false }]);
             setReceiverAddress('');
-
-            const [isValid, , receiver, meta] = await contract.verifyCredential(ipfsHash);
-            const details = await contract.getCredentialDetails(ipfsHash, []);
-            const revokedFields = await contract.getRevokedFields(ipfsHash);
-
+    
+            // Fetch updated credential details
+            const verifyData = await contract.verifyCredential(metadataCID);
+            console.log("verifyCredential response:", verifyData);
+            const [isValid, , receiver, meta] = verifyData || [false, "", "", ""];
+    
+            const details = await contract.getCredentialDetails(metadataCID, []);
+            if (!details || !details.timestamp) {
+                throw new Error("getCredentialDetails returned invalid data.");
+            }
+    
+            const revokedFields = await contract.getRevokedFields(metadataCID);
+            console.log("Revoked Fields:", revokedFields);
+    
             setCredentials(prev => [
                 ...prev,
                 {
-                    fileHash: ipfsHash,
+                    metadataCID: metadataCID,
                     receiver: receiver,
                     metadata: meta,
                     status: 'Active',
@@ -195,6 +212,7 @@ export function IssuerDashboard() {
                     revokedFields: revokedFields,
                 },
             ]);
+    
         } catch (error) {
             console.error('Error issuing credential:', error);
             setNotification({
@@ -205,71 +223,125 @@ export function IssuerDashboard() {
             setIsSubmitting(false);
         }
     };
+    
+    
 
-    const handleRevokeCredentialField = async (fileHash: string, field: string) => {
+    const handleRevokeCredentialField = async (metadataCID: string, field: string) => {
         if (!provider || !walletAddress || !field) return;
-
+    
         setIsSubmitting(true);
         setNotification(null);
-
+    
         try {
+            console.log(`Fetching metadata from IPFS CID: ${metadataCID}`);
+    
+            // 🔍 Fetch metadata from IPFS
+            const metadataResponse = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
+            if (!metadataResponse.ok) {
+                throw new Error(`Failed to fetch metadata from IPFS. Status: ${metadataResponse.status}`);
+            }
+    
+            const metadataText = await metadataResponse.text();
+            if (!metadataText) {
+                throw new Error("Metadata response from IPFS is empty.");
+            }
+    
+            console.log("Metadata JSON from IPFS:", metadataText);
+    
+            // ✅ Parse JSON safely
+            let metadataJson;
+            try {
+                metadataJson = JSON.parse(metadataText);
+            } catch (jsonError) {
+                throw new Error(`Failed to parse metadata JSON. Raw Response: ${metadataText}`);
+            }
+    
+            // 🔍 Extract fileHash
+            const fileHash = metadataJson.fileHash;
+            if (!fileHash) {
+                throw new Error("File hash not found in metadata.");
+            }
+    
+            console.log("Extracted File Hash:", fileHash);
+    
+            // ✅ Fetch credential details from smart contract
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-
-            // Get current credential data
             const [isValid, , receiver, metadata] = await contract.verifyCredential(fileHash);
-            let parsedMetadata = JSON.parse(metadata);
+    
+            console.log("Raw Metadata from Blockchain:", metadata);
+    
+            // 🔍 If metadata is empty, throw an error
+            if (!metadata || metadata.trim() === "") {
+                throw new Error("Metadata from blockchain is empty.");
+            }
+    
+            // ✅ Parse blockchain metadata safely
+            let parsedMetadata;
+            try {
+                parsedMetadata = JSON.parse(metadata);
+            } catch (jsonError) {
+                throw new Error(`Failed to parse metadata from blockchain. Raw Response: ${metadata}`);
+            }
+    
+            console.log("Parsed Metadata from Blockchain:", parsedMetadata);
+    
             if (!parsedMetadata[field]) {
                 throw new Error(`Field "${field}" does not exist in metadata`);
             }
-
-            // Remove the field from metadata
+    
+            // ✅ Remove the field from metadata
             delete parsedMetadata[field];
-            const updatedMetadata = JSON.stringify(parsedMetadata);
-
-            // Upload updated metadata to IPFS
-            const fileContent = JSON.stringify(parsedMetadata, null, 2);
-            const blob = new Blob([fileContent], { type: 'application/json' });
+            const updatedMetadata = JSON.stringify(parsedMetadata, null, 2);
+    
+            // ✅ Upload updated metadata to IPFS
+            const blob = new Blob([updatedMetadata], { type: 'application/json' });
             const formData = new FormData();
             formData.append('file', blob, 'credential.json');
-
+    
             const ipfsResponse = await fetch('http://localhost:5000/api/upload-to-ipfs', {
                 method: 'POST',
                 body: formData,
             });
-
+    
             if (!ipfsResponse.ok) {
                 throw new Error('Failed to upload updated metadata to IPFS');
             }
-
+    
             const ipfsData = await ipfsResponse.json();
+            console.log("New IPFS Hash:", ipfsData);
+    
             const newIpfsHash = ipfsData.ipfsHash;
-
-            // Update contract with new fileHash and metadata
+            if (!newIpfsHash) {
+                throw new Error("New IPFS hash is missing from the response.");
+            }
+    
+            // ✅ Update contract with new metadata CID
             const tx = await contract.revokeCredentialField(fileHash, newIpfsHash, field, updatedMetadata);
-
+    
             setNotification({
                 type: 'success',
                 message: `Revoking field "${field}" and updating file submitted. Waiting for confirmation...`,
                 txHash: tx.hash,
             });
-
+    
             await tx.wait();
-            
+    
             setNotification({
                 type: 'success',
                 message: `Field "${field}" revoked and file updated successfully!`,
                 txHash: tx.hash,
             });
+    
             refreshFiles();
-
-            // Update local state
+    
+            // ✅ Update local state correctly
             setCredentials(prev =>
                 prev.map(cred => {
-                    if (cred.fileHash === fileHash) {
+                    if (cred.metadataCID === metadataCID) {
                         return {
                             ...cred,
-                            fileHash: newIpfsHash,
+                            fileHash: newIpfsHash, // Update with new metadataCID
                             metadata: updatedMetadata,
                             revokedFields: [...cred.revokedFields, field],
                         };
@@ -288,6 +360,9 @@ export function IssuerDashboard() {
             setIsSubmitting(false);
         }
     };
+    
+    
+    
 
     const handleRevokeCredential = async (fileHash: string) => {
         if (!provider || !walletAddress) return;
@@ -317,7 +392,7 @@ export function IssuerDashboard() {
 
             setCredentials(prev =>
                 prev.map(cred =>
-                    cred.fileHash === fileHash ? { ...cred, status: 'Revoked' } : cred
+                    cred.metadataCID === fileHash ? { ...cred, status: 'Revoked' } : cred
                 )
             );
         } catch (error) {
@@ -514,6 +589,7 @@ export function IssuerDashboard() {
                                 No credentials issued yet
                             </p>
                         ) : (
+                            
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
@@ -529,6 +605,7 @@ export function IssuerDashboard() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {credentials.map((credential, index) => {
+                                            // console.log("Credential:", credential);
                                             let parsedMetadata;
                                             try {
                                                 parsedMetadata = JSON.parse(credential.metadata);
@@ -539,16 +616,10 @@ export function IssuerDashboard() {
                                             return (
                                                 <tr key={index} className="group">
                                                     <td className="py-4">
-                                                        <a
-                                                            href={`https://ipfs.io/ipfs/${credential.fileHash}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center text-indigo-600 dark:text-indigo-400 hover:underline"
-                                                        >
-                                                            <span className="truncate max-w-[150px]">{credential.fileHash}</span>
-                                                            <ExternalLink className="w-3 h-3 ml-1" />
-                                                        </a>
+                                                        <FetchFileHash metadataCID={credential.metadataCID} />
                                                     </td>
+
+
                                                     <td className="py-4">
                                                         <span className="font-mono text-sm truncate max-w-[150px] block">
                                                             {credential.receiver}
@@ -594,7 +665,7 @@ export function IssuerDashboard() {
                                                             disabled={credential.status !== 'Active' || isSubmitting}
                                                         />
                                                         <button
-                                                            onClick={() => handleRevokeCredentialField(credential.fileHash, revokeField)}
+                                                            onClick={() => handleRevokeCredentialField(credential.metadataCID, revokeField)}
                                                             disabled={credential.status !== 'Active' || isSubmitting || !revokeField}
                                                             className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting && revokeField
                                                                 ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
@@ -605,7 +676,7 @@ export function IssuerDashboard() {
                                                             <Trash2 className="w-5 h-5" />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleRevokeCredential(credential.fileHash)}
+                                                            onClick={() => handleRevokeCredential(credential.metadataCID)}
                                                             disabled={credential.status !== 'Active' || isSubmitting}
                                                             className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting
                                                                 ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'

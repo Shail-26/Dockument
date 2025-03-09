@@ -6,7 +6,8 @@ import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
 
 interface Document {
     fileHash: string;
-    metadata: string;
+    filename: string;
+    metadataCID: string;
     timestamp: number;
     status: 'Active' | 'Revoked' | 'Deleted';
     url: string;
@@ -29,36 +30,54 @@ export function MyDocuments() {
         setIsLoading(true);
         try {
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
-            const fileHashes = await contract.getUserFiles(walletAddress);
+            const metadataCIDs = await contract.getUserFiles(walletAddress); // Get stored metadata CIDs
     
             const docs: Document[] = [];
-            for (const fileHash of fileHashes) {
+    
+            for (const metadataCID of metadataCIDs) {
                 try {
-                    const [isValid, issuer, receiver, metadata] = await contract.verifyCredential(fileHash);
-                    const details = await contract.getCredentialDetails(fileHash, []); // Empty array for full metadata
+                    // Fetch metadata from IPFS
+                    const metadataUrl = `https://gateway.pinata.cloud/ipfs/${metadataCID}`;
+                    const response = await fetch(metadataUrl);
+                    
+                    if (!response.ok) throw new Error(`Failed to fetch metadata from IPFS: ${metadataCID}`);
+                    
+                    const metadata = await response.json(); // Metadata contains fileHash & filename
+                    console.log("metadata", metadata)
+    
+                    const { fileHash, fileName, timestamp } = metadata; // Ensure metadata includes timestamp
+                    console.log(fileName)
+    
+                    // Fetch credential status from contract
+                    const [isValid, issuer, receiver] = await contract.verifyCredential(metadataCID);
+                    const details = await contract.getCredentialDetails(metadataCID, []); // Fetch credential details
+    
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
-                    console.log(`Metadata for ${fileHash}:`, metadata);
+    
+                    // Construct document object
                     docs.push({
                         fileHash: fileHash,
-                        metadata: metadata,
-                        timestamp: Number(details.timestamp) * 1000,
+                        filename: fileName,
+                        metadataCID: metadataCID,
+                        timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
                         status: status,
                         url: `https://gateway.pinata.cloud/ipfs/${fileHash}`,
                     });
+                    console.log(docs)
                 } catch (innerError) {
-                    console.warn(`Skipping fileHash ${fileHash} due to error:`, innerError);
-                    // Skip this fileHash if it no longer exists or is invalid
-                    continue;
+                    console.warn(`Skipping metadataCID ${metadataCID} due to error:`, innerError);
+                    continue; // Skip this file if fetching failed
                 }
             }
     
             setDocuments(docs);
         } catch (error) {
-            console.error('Error fetching documents:', error);
+            console.error("Error fetching documents:", error);
         } finally {
             setIsLoading(false);
         }
     };
+        
 
     const handleDelete = async (doc: Document) => {
         if (!window.confirm(`Are you sure you want to delete this document (${doc.fileHash})?`)) return;
@@ -67,7 +86,7 @@ export function MyDocuments() {
             if (!provider) throw new Error('Provider not available');
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-            const tx = await contract.deleteFile(doc.fileHash);
+            const tx = await contract.deleteFile(doc.metadataCID);
 
             console.log('Transaction submitted:', tx.hash);
             await tx.wait();
@@ -128,7 +147,7 @@ export function MyDocuments() {
                                 return (
                                     <div key={doc.fileHash} className="card p-4 border rounded cursor-pointer hover:shadow-lg" onClick={() => setSelectedDoc(doc)}>
                                         {getFileIcon(doc.metadata)}
-                                        <p className="font-medium truncate">{parsedMetadata.name || doc.fileHash}</p>
+                                        <p className="font-medium truncate">{parsedMetadata.name || doc.filename}</p>
                                         <p className="text-gray-500">Modified: {new Date(doc.timestamp).toLocaleString()}</p>
                                         <p className={`text-sm ${doc.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{doc.status}</p>
                                         <button
@@ -165,7 +184,7 @@ export function MyDocuments() {
                                         <tr key={doc.fileHash} onClick={() => setSelectedDoc(doc)} className="hover:bg-gray-100">
                                             <td className="py-4 flex items-center">
                                                 {getFileIcon(doc.metadata)}
-                                                <span className="ml-2 truncate max-w-[200px]">{parsedMetadata.name || doc.fileHash}</span>
+                                                <span className="ml-2 truncate max-w-[200px]">{parsedMetadata.name || doc.filename}</span>
                                             </td>
                                             <td className="py-4">{new Date(doc.timestamp).toLocaleString()}</td>
                                             <td className="py-4">
@@ -193,6 +212,7 @@ export function MyDocuments() {
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white p-6 rounded shadow-lg max-w-2xl w-full">
                         <h3 className="text-xl font-bold mb-4">Document Preview</h3>
+                        <p><strong>File Name:</strong> {selectedDoc.filename}</p>
                         <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
                         <p><strong>Status:</strong> {selectedDoc.status}</p>
                         <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
