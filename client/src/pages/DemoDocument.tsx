@@ -23,21 +23,21 @@ export function MyDocuments() {
         if (walletAddress && provider) {
             fetchUserFiles();
         }
-    }, [walletAddress, provider,refreshFiles]);
+    }, [walletAddress, provider, refreshFiles]);
 
     const fetchUserFiles = async () => {
         setIsLoading(true);
         try {
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
             const fileHashes = await contract.getUserFiles(walletAddress);
-    
+
             const docs: Document[] = [];
             for (const fileHash of fileHashes) {
                 try {
                     const [isValid, issuer, receiver, metadata] = await contract.verifyCredential(fileHash);
                     const details = await contract.getCredentialDetails(fileHash, []); // Empty array for full metadata
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
-    
+
                     docs.push({
                         fileHash: fileHash,
                         metadata: metadata,
@@ -51,7 +51,7 @@ export function MyDocuments() {
                     continue;
                 }
             }
-    
+
             setDocuments(docs);
         } catch (error) {
             console.error('Error fetching documents:', error);
@@ -196,19 +196,32 @@ export function MyDocuments() {
                         <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
                         <p><strong>Status:</strong> {selectedDoc.status}</p>
                         <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
-                        <div className="mt-4">
-                            <strong>Metadata:</strong>
-                            <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto max-h-60">
-                                {JSON.stringify(JSON.parse(selectedDoc.metadata), null, 2)}
-                            </pre>
+
+                        {/* Dynamic Certificate Section */}
+                        <div className="mt-4 border-4 border-blue-500 rounded-xl p-6 shadow-lg text-center bg-gray-50">
+                            <h1 className="text-2xl font-bold text-blue-600">Certificate</h1>
+                            <p className="text-lg mt-2 font-semibold">Issued by:</p>
+
+                            {/* Dynamic Metadata Fields */}
+                            {Object.entries(JSON.parse(selectedDoc.metadata)).map(([key, value], index) => (
+                                <div key={index} className="mt-2">
+                                    <p className="text-gray-700">
+                                        <strong className="capitalize">{key.replace(/_/g, " ")}:</strong> {value}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
+
+                        {/* Document Preview */}
                         <iframe src={selectedDoc.url} className="w-full h-[400px] mt-4" title="Document Preview" />
+
                         <button className="mt-4 bg-red-500 text-white px-4 py-2 rounded" onClick={() => setSelectedDoc(null)}>
                             Close
                         </button>
                     </div>
                 </div>
             )}
+
         </div>
     );
 }
