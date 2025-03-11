@@ -24,14 +24,18 @@ export function MyDocuments() {
         if (walletAddress && provider) {
             fetchUserFiles();
         }
-    }, [walletAddress, provider,refreshFiles]);
+    }, [walletAddress, provider, refreshFiles]);
 
     const fetchUserFiles = async () => {
         setIsLoading(true);
         try {
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
+
             const metadataCIDs = await contract.getUserFiles(walletAddress); // Get stored metadata CIDs
     
+
+            // const fileHashes = await contract.getUserFiles(walletAddress);
+
             const docs: Document[] = [];
     
             for (const metadataCID of metadataCIDs) {
@@ -53,8 +57,10 @@ export function MyDocuments() {
                     const details = await contract.getCredentialDetails(metadataCID, []); // Fetch credential details
     
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
+
     
                     // Construct document object
+
                     docs.push({
                         fileHash: fileHash,
                         filename: fileName,
@@ -69,7 +75,7 @@ export function MyDocuments() {
                     continue; // Skip this file if fetching failed
                 }
             }
-    
+
             setDocuments(docs);
         } catch (error) {
             console.error("Error fetching documents:", error);
