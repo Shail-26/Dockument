@@ -5,7 +5,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useWallet } from '../contexts/WalletContext';
 
 export function Navbar() {
-  const ISSUER_ADDRESS = "0x52a2Ec069b79AE3394cEC467AEe4ca045CaDD7c7"; // Hardcoded issuer address
+  const ISSUER_ADDRESS = "0x25ec157063bA1cC84d3781DB5F556D827AF3d09e"; // Hardcoded issuer address
   const { walletAddress } = useWallet();
 
   return (

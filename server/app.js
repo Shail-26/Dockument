@@ -3,11 +3,11 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 require("dotenv").config();
 
-const blockchainRoutes = require("./routes/blockchain");
-const ipfsRoutes = require("./routes/ipfs");
-const fileRoutes = require("./routes/files");
-const authRoutes = require("./routes/auth");
-const limiter = require("./middleware/rateLimit");
+const blockchainRoutes = require("./src/routes/blockchain");
+const ipfsRoutes = require("./src/routes/ipfs");
+const fileRoutes = require("./src/routes/files");
+const authRoutes = require("./src/routes/auth");
+const limiter = require("./src/middleware/rateLimit");
 
 const app = express();
 app.use(cors());
@@ -22,4 +22,6 @@ app.use("/api", ipfsRoutes);
 app.use("/api", authRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`Server running on http://localhost:${PORT}`)
+);

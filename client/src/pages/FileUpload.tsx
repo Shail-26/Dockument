@@ -3,7 +3,7 @@ import { Upload, X, Download, Trash2, FileText, CheckCircle, AlertCircle } from 
 import { useDropzone } from 'react-dropzone';
 import {ethers} from 'ethers';
 import { useWallet } from '../contexts/WalletContext';
-import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
+import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.js';
 
 export function FileUpload() {
     const { walletAddress } = useWallet(); 
@@ -11,7 +11,8 @@ export function FileUpload() {
     const [isUploading, setIsUploading] = useState(false);
     const [response, setResponse] = useState<{
         success: boolean;
-        ipfsHash: string;
+        filename: string;
+        metadataCID: string;
         url: string;
         txHash?: string;
     } | null>(null);
@@ -49,7 +50,7 @@ export function FileUpload() {
             }
 
             const ipfsData = await ipfsResponse.json();
-            const { ipfsHash, url } = ipfsData;
+            const { filename, metadataCID, url } = ipfsData;
 
             // Step 2: Send IPFS hash to backend for blockchain storage
 
@@ -61,12 +62,13 @@ export function FileUpload() {
                 signer
             );
             
-            const tx = await contract.uploadFile(ipfsHash);
+            const tx = await contract.uploadFile(metadataCID);
             await tx.wait();
 
             setResponse({
                 success: true,
-                ipfsHash,
+                filename,
+                metadataCID,
                 url,
                 txHash: tx.hash,
             });
@@ -146,7 +148,7 @@ export function FileUpload() {
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         <tr key="1" className="group">
                                             <td className="py-4">{response.success ? "Uploaded Successfully" : "Failed to Upload"}</td>
-                                            <td className="py-4 text-gray-500 dark:text-gray-400">{response.ipfsHash}</td>
+                                            <td className="py-4 text-gray-500 dark:text-gray-400">{response.metadataCID}</td>
                                             <td className="py-4 text-gray-500 dark:text-gray-400">
                                                 <a href={response.url} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400">View File</a>
                                             </td>
