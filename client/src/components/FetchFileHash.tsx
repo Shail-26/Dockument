@@ -8,10 +8,10 @@ const FetchFileHash = ({ metadataCID }: { metadataCID: string }) => {
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                const response = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
-                const metadata = await response.json();
-                if (metadata.fileHash) {
-                    setFileHash(metadata.fileHash);
+                // const response = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
+                // const metadata = await response.json();
+                if (metadataCID) {
+                    setFileHash(metadataCID);
                 }
             } catch (error) {
                 console.error("Error fetching metadata:", error);

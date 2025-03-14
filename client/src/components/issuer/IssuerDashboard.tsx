@@ -25,7 +25,7 @@ export const IssuerDashboard = () => {
         handleRevokeCredential,
         fetchCredentials,
         setNotification,
-    } = useIssuerActions(walletAddress || '', provider);
+    } = useIssuerActions(walletAddress || '', provider, refreshFiles);
 
     const [fields, setFields] = useState<FormField[]>([{ key: '', value: '', isMandatory: false }]);
     const [receiverAddress, setReceiverAddress] = useState('');

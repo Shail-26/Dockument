@@ -4,7 +4,7 @@ import { Contract, ethers } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info';
 import { Credential, FormField, NotificationType } from '../types';
 
-export const useIssuerActions = (walletAddress: string, provider: any) => {
+export const useIssuerActions = (walletAddress: string, provider: any, refreshFiles: any) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [notification, setNotification] = useState<NotificationType | null>(null);
     const [credentials, setCredentials] = useState<Credential[]>([]);
@@ -47,7 +47,8 @@ export const useIssuerActions = (walletAddress: string, provider: any) => {
             }
 
             const ipfsData = await ipfsResponse.json();
-            const metadataCID = ipfsData.metadataCID;
+            console.log(ipfsData);
+            const metadataCID = ipfsData.fileCID;
 
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
@@ -111,89 +112,100 @@ export const useIssuerActions = (walletAddress: string, provider: any) => {
         }
     };
 
-    const handleRevokeCredentialField = async (metadataCID: string, field: string) => {
+    const handleRevokeCredentialField = async (fileHash: string, field: string) => {
         if (!provider || !walletAddress || !field) return;
-
+    
         setIsSubmitting(true);
         setNotification(null);
-
+    
         try {
-            const metadataResponse = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
-            if (!metadataResponse.ok) {
-                throw new Error(`Failed to fetch metadata from IPFS. Status: ${metadataResponse.status}`);
-            }
-
-            const metadataText = await metadataResponse.text();
-            if (!metadataText) {
-                throw new Error("Metadata response from IPFS is empty.");
-            }
-
-            const metadataJson = JSON.parse(metadataText);
-            const fileHash = metadataJson.fileHash;
-            if (!fileHash) {
-                throw new Error("File hash not found in metadata.");
-            }
-
+            // Fetch metadata from IPFS using metadataCID
+            // const metadataResponse = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
+            // if (!metadataResponse.ok) {
+            //     throw new Error(`Failed to fetch metadata from IPFS. Status: ${metadataResponse.status}`);
+            // }
+    
+            // const metadataText = await metadataResponse.text();
+            // if (!metadataText) {
+            //     throw new Error("Metadata response from IPFS is empty.");
+            // }
+    
+            // const metadataJson = JSON.parse(metadataText);
+            // const fileHash = metadataJson.fileHash;
+            // if (!fileHash) {
+            //     throw new Error("File hash not found in metadata.");
+            // }
+    
+            // Connect to the smart contract
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-            const [isValid, , receiver, metadata] = await contract.verifyCredential(fileHash);
-
-            if (!metadata || metadata.trim() === "") {
-                throw new Error("Metadata from blockchain is empty.");
+    
+            // Verify the credential on-chain using fileHash
+            const [isValid, , receiver, onChainMetadata] = await contract.verifyCredential(fileHash);
+            if (!onChainMetadata || onChainMetadata.trim() === "") {
+                throw new Error("On-chain metadata is empty.");
             }
-
+    
             let parsedMetadata;
             try {
-                parsedMetadata = JSON.parse(metadata);
+                parsedMetadata = JSON.parse(onChainMetadata);
             } catch (jsonError) {
-                throw new Error(`Failed to parse metadata from blockchain. Raw Response: ${metadata}`);
+                throw new Error(`Failed to parse on-chain metadata. Raw response: ${onChainMetadata}`);
             }
-
+    
             if (!parsedMetadata[field]) {
-                throw new Error(`Field "${field}" does not exist in metadata`);
+                throw new Error(`Field "${field}" does not exist in metadata.`);
             }
-
+    
+            // Remove the specified field from the metadata
             delete parsedMetadata[field];
             const updatedMetadata = JSON.stringify(parsedMetadata, null, 2);
-
+    
+            // Prepare the updated metadata file for IPFS
             const blob = new Blob([updatedMetadata], { type: 'application/json' });
             const formData = new FormData();
             formData.append('file', blob, 'credential.json');
-
-            const ipfsResponse = await fetch('http://localhost:5000/api/upload-to-ipfs', {
+    
+            // Upload the updated metadata to IPFS
+            const ipfsUploadResponse = await fetch('http://localhost:5000/api/upload-to-ipfs', {
                 method: 'POST',
                 body: formData,
             });
-
-            if (!ipfsResponse.ok) {
+    
+            if (!ipfsUploadResponse.ok) {
                 throw new Error('Failed to upload updated metadata to IPFS');
             }
-
-            const ipfsData = await ipfsResponse.json();
-            const newIpfsHash = ipfsData.ipfsHash;
+    
+            const ipfsUploadData = await ipfsUploadResponse.json();
+            console.log(ipfsUploadData)
+            const newIpfsHash = ipfsUploadData.fileCID;
             if (!newIpfsHash) {
                 throw new Error("New IPFS hash is missing from the response.");
             }
-
+    
+            // Call the smart contract to revoke the specific field
             const tx = await contract.revokeCredentialField(fileHash, newIpfsHash, field, updatedMetadata);
-
+    
             setNotification({
                 type: 'success',
                 message: `Revoking field "${field}" and updating file submitted. Waiting for confirmation...`,
                 txHash: tx.hash,
             });
-
+    
             await tx.wait();
-
+    
             setNotification({
                 type: 'success',
                 message: `Field "${field}" revoked and file updated successfully!`,
                 txHash: tx.hash,
             });
-
+    
+            // Refresh local files and update the credentials list in the UI
+            refreshFiles();
+            setRevokeField('');
             setCredentials(prev =>
                 prev.map(cred => {
-                    if (cred.metadataCID === metadataCID) {
+                    if (cred.metadataCID === fileHash) {
                         return {
                             ...cred,
                             fileHash: newIpfsHash,
@@ -214,7 +226,7 @@ export const useIssuerActions = (walletAddress: string, provider: any) => {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    };    
 
     const handleRevokeCredential = async (fileHash: string) => {
         if (!provider || !walletAddress) return;

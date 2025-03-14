@@ -59,17 +59,30 @@ export function MyDocuments() {
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
 
     
-                    // Construct document object
+                    // Construct document object 
 
-                    docs.push({
-                        fileHash: fileHash,
-                        filename: fileName,
-                        metadataCID: metadataCID,
-                        timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
-                        status: status,
-                        url: `https://gateway.pinata.cloud/ipfs/${fileHash}`,
-                    });
-                    console.log(docs)
+                    if(fileHash === undefined && fileName === undefined){
+                        docs.push({
+                            fileHash: metadataCID,
+                            filename: "ISSUED CREDENTIAL",
+                            metadataCID: metadataCID,
+                            timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
+                            status: status,
+                            url: `https://gateway.pinata.cloud/ipfs/${metadataCID}`,
+                        });
+                        console.log(docs)
+                    } else {
+                        docs.push({
+                            fileHash: fileHash,
+                            filename: fileName,
+                            metadataCID: metadataCID,
+                            timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
+                            status: status,
+                            url: `https://gateway.pinata.cloud/ipfs/${fileHash}`,
+                        });
+                        console.log(docs)
+                    }
+                    
                 } catch (innerError) {
                     console.warn(`Skipping metadataCID ${metadataCID} due to error:`, innerError);
                     continue; // Skip this file if fetching failed
@@ -153,7 +166,7 @@ export function MyDocuments() {
                                 return (
                                     <div key={doc.fileHash} className="card p-4 border rounded cursor-pointer hover:shadow-lg" onClick={() => setSelectedDoc(doc)}>
                                         {getFileIcon(doc.metadata)}
-                                        <p className="font-medium truncate">{parsedMetadata.name || doc.filename}</p>
+                                        <p className="font-medium truncate">{parsedMetadata.name || doc.filename || "ISSUED CREDENTIAL"}</p>
                                         <p className="text-gray-500">Modified: {new Date(doc.timestamp).toLocaleString()}</p>
                                         <p className={`text-sm ${doc.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{doc.status}</p>
                                         <button
