@@ -15,7 +15,8 @@ interface Document {
 
 export function MyDocuments() {
     const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
-    const [documents, setDocuments] = useState<Document[]>([]);
+    const [uploadedDocuments, setUploadedDocuments] = useState<Document[]>([]);
+    const [issuedDocuments, setIssuedDocuments] = useState<Document[]>([]);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const { walletAddress, provider, refreshFiles } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
@@ -30,73 +31,51 @@ export function MyDocuments() {
         setIsLoading(true);
         try {
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
+            const metadataCIDs = await contract.getUserFiles(walletAddress);
 
-            const metadataCIDs = await contract.getUserFiles(walletAddress); // Get stored metadata CIDs
-    
+            const uploadedDocs: Document[] = [];
+            const issuedDocs: Document[] = [];
 
-            // const fileHashes = await contract.getUserFiles(walletAddress);
-
-            const docs: Document[] = [];
-    
             for (const metadataCID of metadataCIDs) {
                 try {
-                    // Fetch metadata from IPFS
                     const metadataUrl = `https://gateway.pinata.cloud/ipfs/${metadataCID}`;
                     const response = await fetch(metadataUrl);
-                    
                     if (!response.ok) throw new Error(`Failed to fetch metadata from IPFS: ${metadataCID}`);
-                    
-                    const metadata = await response.json(); // Metadata contains fileHash & filename
-                    console.log("metadata", metadata)
-    
-                    const { fileHash, fileName, timestamp } = metadata; // Ensure metadata includes timestamp
-                    console.log(fileName)
-    
-                    // Fetch credential status from contract
+                    const metadata = await response.json();
+
+                    const { fileHash, fileName, timestamp } = metadata;
                     const [isValid, issuer, receiver] = await contract.verifyCredential(metadataCID);
-                    const details = await contract.getCredentialDetails(metadataCID, []); // Fetch credential details
-    
+                    const details = await contract.getCredentialDetails(metadataCID, []);
                     const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
 
-    
-                    // Construct document object 
+                    const documentData = {
+                        fileHash: fileHash || metadataCID,
+                        filename: fileName || "ISSUED CREDENTIAL",
+                        metadataCID: metadataCID,
+                        timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(),
+                        status: status,
+                        url: `https://gateway.pinata.cloud/ipfs/${fileHash || metadataCID}`,
+                    };
 
-                    if(fileHash === undefined && fileName === undefined){
-                        docs.push({
-                            fileHash: metadataCID,
-                            filename: "ISSUED CREDENTIAL",
-                            metadataCID: metadataCID,
-                            timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
-                            status: status,
-                            url: `https://gateway.pinata.cloud/ipfs/${metadataCID}`,
-                        });
-                        console.log(docs)
+                    if (fileHash === undefined && fileName === undefined) {
+                        issuedDocs.push(documentData);
                     } else {
-                        docs.push({
-                            fileHash: fileHash,
-                            filename: fileName,
-                            metadataCID: metadataCID,
-                            timestamp: timestamp ? Number(timestamp) * 1000 : Date.now(), // Convert timestamp to ms
-                            status: status,
-                            url: `https://gateway.pinata.cloud/ipfs/${fileHash}`,
-                        });
-                        console.log(docs)
+                        uploadedDocs.push(documentData);
                     }
-                    
                 } catch (innerError) {
                     console.warn(`Skipping metadataCID ${metadataCID} due to error:`, innerError);
-                    continue; // Skip this file if fetching failed
+                    continue;
                 }
             }
 
-            setDocuments(docs);
+            setUploadedDocuments(uploadedDocs);
+            setIssuedDocuments(issuedDocs);
         } catch (error) {
             console.error("Error fetching documents:", error);
         } finally {
             setIsLoading(false);
         }
     };
-        
 
     const handleDelete = async (doc: Document) => {
         if (!window.confirm(`Are you sure you want to delete this document (${doc.fileHash})?`)) return;
@@ -122,9 +101,65 @@ export function MyDocuments() {
         return <FileText className="w-6 h-6" />;
     };
 
+    const renderDocumentList = (documents: Document[], title: string) => (
+        <div className="mb-12">
+            <h2 className="text-2xl font-bold mb-4">{title}</h2>
+            {documents.length === 0 ? (
+                <p className="text-gray-500">No {title.toLowerCase()} found</p>
+            ) : viewType === 'grid' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {documents.map((doc) => (
+                        <div key={doc.fileHash} className="card p-4 border rounded cursor-pointer hover:shadow-lg" onClick={() => setSelectedDoc(doc)}>
+                            <FileText className="w-6 h-6" />
+                            <p className="font-medium truncate">{doc.filename}</p>
+                            <p className="text-gray-500">Modified: {new Date(doc.timestamp).toLocaleString()}</p>
+                            <p className={`text-sm ${doc.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{doc.status}</p>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
+                                className="text-red-500 hover:text-red-700 mt-2"
+                                disabled={doc.status !== 'Active'}
+                            >
+                                <Trash2 className="w-5 h-5" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <table className="w-full">
+                    <thead>
+                        <tr>
+                            <th className="pb-3 text-left">File</th>
+                            <th className="pb-3 text-left">Modified</th>
+                            <th className="pb-3 text-left">Status</th>
+                            <th className="pb-3 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {documents.map((doc) => (
+                            <tr key={doc.fileHash} onClick={() => setSelectedDoc(doc)} className="hover:bg-gray-100">
+                                <td className="py-4">{doc.filename}</td>
+                                <td className="py-4">{new Date(doc.timestamp).toLocaleString()}</td>
+                                <td className="py-4 text-sm font-medium">{doc.status}</td>
+                                <td className="py-4">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
+                                        className="text-red-500 hover:text-red-700"
+                                        disabled={doc.status !== 'Active'}
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </div>
+    );
+
     return (
         <div className="page-transition pt-16">
-            <section className="py-12 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
+            <section className="py-12 bg-white">
                 <div className="max-w-7xl mx-auto px-4">
                     <h1 className="text-4xl font-bold text-center">My Documents</h1>
                     <p className="text-center">Manage all your secure documents in one place</p>
@@ -134,95 +169,14 @@ export function MyDocuments() {
             <section className="py-12 bg-white">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex justify-between mb-8">
-                        <div className="flex items-center space-x-4">
-                            <button onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100">
-                                <Grid className="w-5 h-5" />
-                            </button>
-                            <button onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100">
-                                <List className="w-5 h-5" />
-                            </button>
-                        </div>
+                        <button onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100"><Grid className="w-5 h-5" /></button>
+                        <button onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100"><List className="w-5 h-5" /></button>
                     </div>
-
-                    {isLoading ? (
-                        <div className="flex justify-center py-8">
-                            <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </div>
-                    ) : documents.length === 0 ? (
-                        <p className="text-center py-8 text-gray-500">No documents found</p>
-                    ) : viewType === 'grid' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                            {documents.map((doc) => {
-                                let parsedMetadata;
-                                try {
-                                    parsedMetadata = JSON.parse(doc.metadata);
-                                } catch (e) {
-                                    parsedMetadata = { error: "Invalid Metadata" };
-                                }
-
-                                return (
-                                    <div key={doc.fileHash} className="card p-4 border rounded cursor-pointer hover:shadow-lg" onClick={() => setSelectedDoc(doc)}>
-                                        {getFileIcon(doc.metadata)}
-                                        <p className="font-medium truncate">{parsedMetadata.name || doc.filename || "ISSUED CREDENTIAL"}</p>
-                                        <p className="text-gray-500">Modified: {new Date(doc.timestamp).toLocaleString()}</p>
-                                        <p className={`text-sm ${doc.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{doc.status}</p>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
-                                            className="text-red-500 hover:text-red-700 mt-2"
-                                            disabled={doc.status !== 'Active'}
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <table className="w-full">
-                            <thead>
-                                <tr>
-                                    <th className="pb-3 text-left">File</th>
-                                    <th className="pb-3 text-left">Modified</th>
-                                    <th className="pb-3 text-left">Status</th>
-                                    <th className="pb-3 text-left">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {documents.map((doc) => {
-                                    let parsedMetadata;
-                                    try {
-                                        parsedMetadata = JSON.parse(doc.metadata);
-                                    } catch (e) {
-                                        parsedMetadata = { error: "Invalid Metadata" };
-                                    }
-
-                                    return (
-                                        <tr key={doc.fileHash} onClick={() => setSelectedDoc(doc)} className="hover:bg-gray-100">
-                                            <td className="py-4 flex items-center">
-                                                {getFileIcon(doc.metadata)}
-                                                <span className="ml-2 truncate max-w-[200px]">{parsedMetadata.name || doc.filename}</span>
-                                            </td>
-                                            <td className="py-4">{new Date(doc.timestamp).toLocaleString()}</td>
-                                            <td className="py-4">
-                                                <span className={`${doc.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{doc.status}</span>
-                                            </td>
-                                            <td className="py-4">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
-                                                    className="text-red-500 hover:text-red-700"
-                                                    disabled={doc.status !== 'Active'}
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                    {isLoading ? <p>Loading...</p> : (
+                        <>
+                            {renderDocumentList(uploadedDocuments, "Uploaded Files")}
+                            {renderDocumentList(issuedDocuments, "Issued Credentials")}
+                        </>
                     )}
                 </div>
             </section>
@@ -253,6 +207,7 @@ export function MyDocuments() {
                     </div>
                 </div>
             )}
+
 
         </div>
     );
