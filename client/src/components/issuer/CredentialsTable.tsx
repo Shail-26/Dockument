@@ -2,39 +2,22 @@ import { Credential } from '../../types';
 import FetchFileHash from '../FetchFileHash';
 import { formatDate } from '../../utils/formatDate';
 import { Trash2 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
 const CredentialsTable = ({
     credentials,
     isLoading,
-    revokeField,
-    setRevokeField,
     onRevokeField,
     onRevokeCredential,
     isSubmitting,
 }: {
     credentials: Credential[];
     isLoading: boolean;
-    revokeField: string;
-    setRevokeField: (value: string) => void;
     onRevokeField: (metadataCID: string, field: string) => Promise<void>;
     onRevokeCredential: (fileHash: string) => Promise<void>;
     isSubmitting: boolean;
 }) => {
     console.log('CredentialsTable rendered');
-
-    const [localRevokeField, setLocalRevokeField] = useState(revokeField);
-
-    // Memoize input change handler
-    const handleRevokeFieldChange = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => setLocalRevokeField(e.target.value),
-        []
-    );
-
-    // Apply local state to the global state only when needed
-    const handleRevoke = useCallback(() => {
-        setRevokeField(localRevokeField);
-    }, [localRevokeField, setRevokeField]);
 
     return (
         <div className="card">
@@ -74,79 +57,14 @@ const CredentialsTable = ({
                                 }
 
                                 return (
-                                    <tr key={index} className="group">
-                                        <td className="py-4">
-                                            <FetchFileHash metadataCID={credential.metadataCID} />
-                                        </td>
-                                        <td className="py-4">
-                                            <span className="font-mono text-sm truncate max-w-[150px] block">
-                                                {credential.receiver}
-                                            </span>
-                                        </td>
-                                        <td className="py-4">
-                                            <div className="max-w-[200px] truncate">
-                                                {parsedMetadata.name && (
-                                                    <span className="font-medium">{parsedMetadata.name}</span>
-                                                )}
-                                                {parsedMetadata.type && (
-                                                    <span className="ml-1 text-sm text-gray-500 dark:text-gray-400">
-                                                        ({parsedMetadata.type})
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="py-4">
-                                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                {credential.revokedFields.length > 0 ? credential.revokedFields.join(', ') : 'None'}
-                                            </span>
-                                        </td>
-                                        <td className="py-4">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${credential.status === 'Active'
-                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                : credential.status === 'Revoked'
-                                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                                                }`}>
-                                                {credential.status}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 text-gray-500 dark:text-gray-400">
-                                            {formatDate(credential.timestamp)}
-                                        </td>
-                                        <td className="py-4 flex space-x-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Field to revoke"
-                                                value={localRevokeField}
-                                                onChange={handleRevokeFieldChange}
-                                                onBlur={handleRevoke}
-                                                className="input-field w-32 text-sm"
-                                                disabled={credential.status !== 'Active' || isSubmitting}
-                                            />
-                                            <button
-                                                onClick={() => onRevokeField(credential.metadataCID, localRevokeField)}
-                                                disabled={credential.status !== 'Active' || isSubmitting || !localRevokeField}
-                                                className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting && localRevokeField
-                                                    ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
-                                                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                                                    }`}
-                                                title="Revoke Field"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => onRevokeCredential(credential.metadataCID)}
-                                                disabled={credential.status !== 'Active' || isSubmitting}
-                                                className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting
-                                                    ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
-                                                    : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                                                    }`}
-                                                title="Revoke Entire Credential"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <CredentialRow
+                                        key={credential.metadataCID}
+                                        credential={credential}
+                                        parsedMetadata={parsedMetadata}
+                                        onRevokeField={onRevokeField}
+                                        onRevokeCredential={onRevokeCredential}
+                                        isSubmitting={isSubmitting}
+                                    />
                                 );
                             })}
                         </tbody>
@@ -154,6 +72,98 @@ const CredentialsTable = ({
                 </div>
             )}
         </div>
+    );
+};
+
+// Separate component for each row
+const CredentialRow = ({
+    credential,
+    parsedMetadata,
+    onRevokeField,
+    onRevokeCredential,
+    isSubmitting,
+}: {
+    credential: Credential;
+    parsedMetadata: any;
+    onRevokeField: (metadataCID: string, field: string) => Promise<void>;
+    onRevokeCredential: (fileHash: string) => Promise<void>;
+    isSubmitting: boolean;
+}) => {
+    const [localRevokeField, setLocalRevokeField] = useState('');
+
+    return (
+        <tr className="group">
+            <td className="py-4">
+                <FetchFileHash metadataCID={credential.metadataCID} />
+            </td>
+            <td className="py-4">
+                <span className="font-mono text-sm truncate max-w-[150px] block">
+                    {credential.receiver}
+                </span>
+            </td>
+            <td className="py-4">
+                <div className="max-w-[200px] truncate">
+                    {parsedMetadata.name && (
+                        <span className="font-medium">{parsedMetadata.name}</span>
+                    )}
+                    {parsedMetadata.type && (
+                        <span className="ml-1 text-sm text-gray-500 dark:text-gray-400">
+                            ({parsedMetadata.type})
+                        </span>
+                    )}
+                </div>
+            </td>
+            <td className="py-4">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {credential.revokedFields.length > 0 ? credential.revokedFields.join(', ') : 'None'}
+                </span>
+            </td>
+            <td className="py-4">
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${credential.status === 'Active'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : credential.status === 'Revoked'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                    }`}>
+                    {credential.status}
+                </span>
+            </td>
+            <td className="py-4 text-gray-500 dark:text-gray-400">
+                {formatDate(credential.timestamp)}
+            </td>
+            <td className="py-4 flex space-x-2">
+                <input
+                    type="text"
+                    placeholder="Field to revoke"
+                    value={localRevokeField}
+                    onChange={(e) => setLocalRevokeField(e.target.value)}
+                    className="input-field w-32 text-sm"
+                    disabled={credential.status !== 'Active' || isSubmitting}
+                />
+                <button
+                    onClick={() => onRevokeField(credential.metadataCID, localRevokeField)}
+                    disabled={credential.status !== 'Active' || isSubmitting || !localRevokeField}
+                    className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting && localRevokeField
+                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
+                        : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        }`}
+                    title="Revoke Field"
+                >
+                    <Trash2 className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={() => onRevokeCredential(credential.metadataCID)}
+                    disabled={credential.status !== 'Active' || isSubmitting}
+                    className={`p-2 rounded-full transition-colors ${credential.status === 'Active' && !isSubmitting
+                        ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'
+                        : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                        }`}
+                    title="Revoke Entire Credential"
+                >
+                    <Trash2 className="w-5 h-5" />
+                </button>
+            </td>
+        </tr>
     );
 };
 
