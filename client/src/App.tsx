@@ -14,7 +14,7 @@ import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DocumentPage } from './pages/DocumentPage';
 import { MyDocuments } from './pages/DemoDocument';
-import { IssuerDashboard } from './pages/issuer/IssuerDashboard';
+import { IssuerDashboard } from './components/issuer/IssuerDashboard';
 
 function App() {
   return (

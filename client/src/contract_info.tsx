@@ -630,6 +630,6 @@ const ContractAbi =  [
     "type": "function"
   }
 ]
-const CONTRACT_ADDRESS = "0x8025c6729b98b05bF7004a20a0386E73FEA28128";
+const CONTRACT_ADDRESS = "0x5959726EE4419172Cd031a61Bf1f4ecCE21f0249";
 
 export {ContractAbi, CONTRACT_ADDRESS};
