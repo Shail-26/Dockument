@@ -296,6 +296,25 @@
                 "type": "string"
             }
         ],
+        "name": "getMandatoryFields",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_fileHash",
+                "type": "string"
+            }
+        ],
         "name": "getRevokedFields",
         "outputs": [
             {

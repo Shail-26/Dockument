@@ -457,6 +457,25 @@ const ContractAbi =  [
         "type": "string"
       }
     ],
+    "name": "getMandatoryFields",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
     "name": "getRevokedFields",
     "outputs": [
       {
@@ -630,6 +649,6 @@ const ContractAbi =  [
     "type": "function"
   }
 ]
-const CONTRACT_ADDRESS = "0x5959726EE4419172Cd031a61Bf1f4ecCE21f0249";
+const CONTRACT_ADDRESS = "0xF9b74d2a78240E22AD63158D6992E68d288fA34F";
 
 export {ContractAbi, CONTRACT_ADDRESS};

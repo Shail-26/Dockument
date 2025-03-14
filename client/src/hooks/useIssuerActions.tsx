@@ -119,24 +119,6 @@ export const useIssuerActions = (walletAddress: string, provider: any, refreshFi
         setNotification(null);
     
         try {
-            // Fetch metadata from IPFS using metadataCID
-            // const metadataResponse = await fetch(`https://ipfs.io/ipfs/${metadataCID}`);
-            // if (!metadataResponse.ok) {
-            //     throw new Error(`Failed to fetch metadata from IPFS. Status: ${metadataResponse.status}`);
-            // }
-    
-            // const metadataText = await metadataResponse.text();
-            // if (!metadataText) {
-            //     throw new Error("Metadata response from IPFS is empty.");
-            // }
-    
-            // const metadataJson = JSON.parse(metadataText);
-            // const fileHash = metadataJson.fileHash;
-            // if (!fileHash) {
-            //     throw new Error("File hash not found in metadata.");
-            // }
-    
-            // Connect to the smart contract
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
     
@@ -151,6 +133,14 @@ export const useIssuerActions = (walletAddress: string, provider: any, refreshFi
                 parsedMetadata = JSON.parse(onChainMetadata);
             } catch (jsonError) {
                 throw new Error(`Failed to parse on-chain metadata. Raw response: ${onChainMetadata}`);
+            }
+    
+            // Fetch mandatory fields from the smart contract
+            const mandatoryFieldsResponse = await contract.getMandatoryFields(fileHash);
+            const mandatoryFields = JSON.parse(mandatoryFieldsResponse).fields;
+            
+            if (mandatoryFields.includes(field)) {
+                throw new Error(`Field "${field}" is mandatory and cannot be revoked.`);
             }
     
             if (!parsedMetadata[field]) {
@@ -226,7 +216,8 @@ export const useIssuerActions = (walletAddress: string, provider: any, refreshFi
         } finally {
             setIsSubmitting(false);
         }
-    };    
+    };
+       
 
     const handleRevokeCredential = async (fileHash: string) => {
         if (!provider || !walletAddress) return;

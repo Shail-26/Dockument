@@ -177,6 +177,13 @@ contract FileStorage {
         // If not found, do nothing (optional: revert if critical)
     }
 
+    function getMandatoryFields(string memory _fileHash) public view returns (string memory) {
+        Credential storage credential = files[_fileHash];
+        require(credential.issuer != address(0), "File/Credential does not exist");
+        require(!credential.isDeleted, "File/Credential has been deleted");
+        return credential.mandatoryFields;
+    }
+
     function getRevokedFields(string memory _fileHash) public view returns (string[] memory) {
         Credential storage credential = files[_fileHash];
         require(credential.issuer != address(0), "File/Credential does not exist");
