@@ -161,11 +161,6 @@
 // ]
 const ContractAbi =  [
   {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -260,6 +255,37 @@ const ContractAbi =  [
         "internalType": "address",
         "name": "owner",
         "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "expiration",
+        "type": "uint256"
+      }
+    ],
+    "name": "CredentialShared",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       }
     ],
     "name": "FileDeleted",
@@ -304,6 +330,31 @@ const ContractAbi =  [
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "fileHash",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      }
+    ],
+    "name": "SharedAccessRevoked",
+    "type": "event"
+  },
+  {
     "inputs": [
       {
         "internalType": "string",
@@ -315,6 +366,152 @@ const ContractAbi =  [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "_metadata",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_mandatoryFields",
+        "type": "string"
+      }
+    ],
+    "name": "issueCredential",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_issuer",
+        "type": "address"
+      }
+    ],
+    "name": "registerIssuer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "revokeCredential",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_oldFileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_newFileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_field",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_updatedMetadata",
+        "type": "string"
+      }
+    ],
+    "name": "revokeCredentialField",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_recipient",
+        "type": "address"
+      }
+    ],
+    "name": "revokeSharedAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "_recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "string[]",
+        "name": "_fieldsToShare",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_durationSeconds",
+        "type": "uint256"
+      }
+    ],
+    "name": "shareCredential",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_fileHash",
+        "type": "string"
+      }
+    ],
+    "name": "uploadFile",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
     "inputs": [
@@ -488,6 +685,41 @@ const ContractAbi =  [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getSharedCredentials",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "fileHash",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string[]",
+            "name": "allowedFields",
+            "type": "string[]"
+          }
+        ],
+        "internalType": "struct FileStorage.SharedAccess[]",
+        "name": "validShares",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -507,34 +739,6 @@ const ContractAbi =  [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_fileHash",
-        "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "_receiver",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "_metadata",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_mandatoryFields",
-        "type": "string"
-      }
-    ],
-    "name": "issueCredential",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "owner",
     "outputs": [
@@ -545,73 +749,6 @@ const ContractAbi =  [
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_issuer",
-        "type": "address"
-      }
-    ],
-    "name": "registerIssuer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_fileHash",
-        "type": "string"
-      }
-    ],
-    "name": "revokeCredential",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_oldFileHash",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_newFileHash",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_field",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_updatedMetadata",
-        "type": "string"
-      }
-    ],
-    "name": "revokeCredentialField",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "_fileHash",
-        "type": "string"
-      }
-    ],
-    "name": "uploadFile",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -649,6 +786,6 @@ const ContractAbi =  [
     "type": "function"
   }
 ]
-const CONTRACT_ADDRESS = "0xF9b74d2a78240E22AD63158D6992E68d288fA34F";
+const CONTRACT_ADDRESS = "0x860d6d029284b1A96907Ca8486182ec97C6d4Bc3";
 
 export {ContractAbi, CONTRACT_ADDRESS};

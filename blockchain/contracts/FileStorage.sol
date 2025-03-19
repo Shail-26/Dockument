@@ -15,9 +15,18 @@ contract FileStorage {
         string mandatoryFields;  // JSON string of mandatory field keys
     }
 
+    struct SharedAccess {
+        string fileHash;
+        address recipient;
+        uint256 expiration;
+        string[] allowedFields;
+    }
+
     mapping(string => Credential) private files;
     mapping(address => string[]) private userFiles;
     mapping(address => string[]) private issuedFiles;
+    mapping(address => SharedAccess[]) private sharedWith;  // Tracks credentials shared with a user
+    mapping(address => mapping(string => SharedAccess)) private sharedAccess;  // Owner -> FileHash -> SharedAccess
     mapping(address => bool) private issuers;
     address public owner;
 
@@ -27,6 +36,8 @@ contract FileStorage {
     event CredentialFieldRevoked(string oldFileHash, string newFileHash, string field, address indexed issuer);
     event CredentialFullyRevoked(string fileHash, address indexed issuer);
     event IssuerRegistered(address indexed issuer);
+    event CredentialShared(string fileHash, address indexed owner, address indexed recipient, uint256 expiration);
+    event SharedAccessRevoked(string fileHash, address indexed owner, address indexed recipient);
 
     constructor() {
         owner = msg.sender;
@@ -50,6 +61,58 @@ contract FileStorage {
         issuers[_issuer] = true;
         emit IssuerRegistered(_issuer);
     }
+
+    function shareCredential(
+        string memory _fileHash,
+        address _recipient,
+        string[] memory _fieldsToShare,
+        uint256 _durationSeconds
+    ) public {
+        Credential storage cred = files[_fileHash];
+        require(cred.receiver == msg.sender, "Only credential owner can share");
+        require(!cred.isDeleted, "Credential deleted");
+        require(!cred.isFullyRevoked, "Credential revoked");
+        require(_recipient != address(0), "Invalid recipient");
+        require(_durationSeconds > 0, "Invalid duration");
+
+        // Validate shared fields
+        for (uint i = 0; i < _fieldsToShare.length; i++) {
+            require(!cred.revokedFields[_fieldsToShare[i]], "Cannot share revoked field");
+        }
+
+        SharedAccess memory newShare = SharedAccess({
+            fileHash: _fileHash,
+            recipient: _recipient,
+            expiration: block.timestamp + _durationSeconds,
+            allowedFields: _fieldsToShare
+        });
+
+        sharedWith[_recipient].push(newShare);
+        sharedAccess[msg.sender][_fileHash] = newShare;
+        emit CredentialShared(_fileHash, msg.sender, _recipient, newShare.expiration);
+    }
+
+    function revokeSharedAccess(string memory _fileHash, address _recipient) public {
+        // Only the credential owner (receiver) can revoke shared access
+        Credential storage cred = files[_fileHash];
+        require(cred.receiver == msg.sender, "Only credential owner can revoke shared access");
+
+        SharedAccess[] storage shares = sharedWith[_recipient];
+        bool found = false;
+        for (uint i = 0; i < shares.length; i++) {
+            if (keccak256(abi.encodePacked(shares[i].fileHash)) == keccak256(abi.encodePacked(_fileHash)) &&
+                shares[i].expiration > block.timestamp) {
+                // Remove this shared access entry
+                shares[i] = shares[shares.length - 1];
+                shares.pop();
+                found = true;
+                emit SharedAccessRevoked(_fileHash, msg.sender, _recipient);
+                break;
+            }
+        }
+        require(found, "Shared access not found");
+    }
+
 
     // Modified: Allow multiple users to upload the same fileHash
     function uploadFile(string memory _fileHash) public {
@@ -100,6 +163,17 @@ contract FileStorage {
 
         credential.isDeleted = true;
 
+        // Clean up shared accesses
+        SharedAccess[] storage shares = sharedWith[msg.sender];
+        for (uint i = shares.length; i > 0; i--) {
+            if (keccak256(abi.encodePacked(shares[i-1].fileHash)) == keccak256(abi.encodePacked(_fileHash))) {
+                if (i-1 != shares.length - 1) {
+                    shares[i-1] = shares[shares.length - 1];
+                }
+                shares.pop();
+            }
+        }
+
         string[] storage userFileList = userFiles[msg.sender];
         for (uint256 i = 0; i < userFileList.length; i++) {
             if (keccak256(abi.encodePacked(userFileList[i])) == keccak256(abi.encodePacked(_fileHash))) {
@@ -111,6 +185,35 @@ contract FileStorage {
         }
         revert("File not found in user files");
     }
+
+    // New function: Get shared credentials for current user
+    function getSharedCredentials() public view returns (SharedAccess[] memory validShares) {
+        SharedAccess[] storage allShares = sharedWith[msg.sender];
+        uint validCount = 0;
+        
+        // First pass to count valid shares
+        for (uint i = 0; i < allShares.length; i++) {
+            if (allShares[i].expiration > block.timestamp && 
+                !files[allShares[i].fileHash].isDeleted &&
+                !files[allShares[i].fileHash].isFullyRevoked) {
+                validCount++;
+            }
+        }
+
+        // Second pass to collect valid shares
+        validShares = new SharedAccess[](validCount);
+        uint index = 0;
+        for (uint i = 0; i < allShares.length; i++) {
+            if (allShares[i].expiration > block.timestamp && 
+                !files[allShares[i].fileHash].isDeleted &&
+                !files[allShares[i].fileHash].isFullyRevoked) {
+                validShares[index] = allShares[i];
+                index++;
+            }
+        }
+        return validShares;
+    }
+
 
     // NEW: Revoke specific field in metadata
     function revokeCredentialField(string memory _oldFileHash, string memory _newFileHash, string memory _field, string memory _updatedMetadata) public onlyIssuer {
@@ -207,57 +310,52 @@ contract FileStorage {
         string memory sharedMetadata
     ) {
         Credential storage credential = files[_fileHash];
-        require(credential.issuer != address(0), "File/Credential does not exist");
-        require(!credential.isDeleted, "File/Credential has been deleted");
+        require(credential.issuer != address(0), "Credential does not exist");
+        require(!credential.isDeleted, "Credential deleted");
+        require(!credential.isFullyRevoked, "Credential revoked");
 
+        // Modified access control logic
+        bool isAuthorized = msg.sender == credential.issuer || 
+                        msg.sender == credential.receiver;
+        
+        if (!isAuthorized) {
+            // Shared access check for third parties
+            bool hasValidAccess = false;
+            string[] memory allowedFields;
+            SharedAccess[] storage shares = sharedWith[msg.sender];
+            
+            for (uint i = 0; i < shares.length; i++) {
+                if (keccak256(abi.encodePacked(shares[i].fileHash)) == 
+                keccak256(abi.encodePacked(_fileHash)) &&
+                shares[i].expiration > block.timestamp) {
+                    hasValidAccess = true;
+                    allowedFields = shares[i].allowedFields;
+                    break;
+                }
+            }
+            require(hasValidAccess, "No valid access rights");
+            _fieldsToShare = allowedFields;
+        }
+
+        // Rest of the function remains unchanged
         fileHash = credential.fileHash;
         issuer = credential.issuer;
         receiver = credential.receiver;
         timestamp = credential.timestamp;
 
-        // Only receiver can selectively disclose
-        if (msg.sender != credential.receiver) {
-            sharedMetadata = "";
-        } else {
-            // Parse mandatory fields
-            string memory mandatoryFieldsJson = credential.mandatoryFields;
-            bytes memory mandatoryBytes = bytes(mandatoryFieldsJson);
-            if (mandatoryBytes.length > 0) {
-                // Simplified: Assume mandatoryFields is '{"fields": ["field1", "field2"]}'
-                // In practice, use a JSON parsing library or stricter format
-                string[] memory mandatoryFields = new string[](2); // Placeholder; expand as needed
-                mandatoryFields[0] = "name"; // Example
-                mandatoryFields[1] = "type"; // Example
-
-                // Combine mandatory and requested fields
-                string[] memory allFields = new string[](_fieldsToShare.length + mandatoryFields.length);
-                for (uint256 i = 0; i < _fieldsToShare.length; i++) {
-                    allFields[i] = _fieldsToShare[i];
-                }
-                for (uint256 i = 0; i < mandatoryFields.length; i++) {
-                    allFields[_fieldsToShare.length + i] = mandatoryFields[i];
-                }
-
-                // Construct shared metadata (simplified; assumes JSON-like structure)
-                bytes memory result = bytes("{");
-                bool first = true;
-                for (uint256 i = 0; i < allFields.length; i++) {
-                    if (!credential.revokedFields[allFields[i]]) {
-                        if (!first) {
-                            result = abi.encodePacked(result, ",");
-                        }
-                        // Placeholder: Extract field from metadata (requires JSON parsing)
-                        result = abi.encodePacked(result, '"', allFields[i], '":"value"');
-                        first = false;
-                    }
-                }
-                result = abi.encodePacked(result, "}");
-                sharedMetadata = string(result);
-            } else {
-                sharedMetadata = credential.metadata; // Fallback if no mandatory fields
+        bytes memory result = bytes("{");
+        bool first = true;
+        for (uint256 i = 0; i < _fieldsToShare.length; i++) {
+            if (!credential.revokedFields[_fieldsToShare[i]]) {
+                if (!first) result = abi.encodePacked(result, ",");
+                result = abi.encodePacked(result, '"', _fieldsToShare[i], '":"value"');
+                first = false;
             }
         }
+        result = abi.encodePacked(result, "}");
+        sharedMetadata = string(result);
     }
+
 
     function getUserFiles(address _user) public view returns (string[] memory) {
         string[] memory allFiles = userFiles[_user];

@@ -14,8 +14,17 @@ export interface FormField {
     isMandatory?: boolean;
 }
 
-export type NotificationType = {
+export interface Document {
+    fileHash: string;
+    filename: string;
+    metadataCID: string;
+    timestamp: number;
+    status: 'Active' | 'Revoked' | 'Deleted';
+    url: string;
+}
+
+export interface NotificationType {
     type: 'success' | 'error';
     message: string;
     txHash?: string;
-};
+}
