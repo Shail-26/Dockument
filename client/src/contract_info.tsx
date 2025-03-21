@@ -159,7 +159,7 @@
 //     "type": "function"
 //   }
 // ]
-const ContractAbi =  [
+const ContractAbi =   [
   {
     "anonymous": false,
     "inputs": [
@@ -686,6 +686,41 @@ const ContractAbi =  [
   },
   {
     "inputs": [],
+    "name": "getSharedByOwner",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "fileHash",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "recipient",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expiration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string[]",
+            "name": "allowedFields",
+            "type": "string[]"
+          }
+        ],
+        "internalType": "struct FileStorage.SharedAccess[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "getSharedCredentials",
     "outputs": [
       {
@@ -786,6 +821,6 @@ const ContractAbi =  [
     "type": "function"
   }
 ]
-const CONTRACT_ADDRESS = "0x860d6d029284b1A96907Ca8486182ec97C6d4Bc3";
+const CONTRACT_ADDRESS = "0x5d2574dc770c30F31e1bbdB7c8B2C1451dcF790C";
 
 export {ContractAbi, CONTRACT_ADDRESS};

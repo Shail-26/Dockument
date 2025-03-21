@@ -525,6 +525,41 @@
     },
     {
         "inputs": [],
+        "name": "getSharedByOwner",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "fileHash",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "recipient",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "expiration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string[]",
+                        "name": "allowedFields",
+                        "type": "string[]"
+                    }
+                ],
+                "internalType": "struct FileStorage.SharedAccess[]",
+                "name": "",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "getSharedCredentials",
         "outputs": [
             {

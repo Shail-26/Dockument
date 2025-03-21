@@ -82,7 +82,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
             const ethProvider = new BrowserProvider(window.ethereum);
             const accounts = await ethProvider.send('eth_requestAccounts', []);
-
+            console.log(accounts);
             if (accounts.length > 0) {
                 setWalletAddress(accounts[0]);
                 setProvider(ethProvider);

@@ -262,10 +262,12 @@ export const useIssuerActions = (walletAddress: string, provider: any, refreshFi
 
     const fetchCredentials = async () => {
         if (!walletAddress || !provider) return;
+        console.log(await provider.getSigner())
+        console.log(provider)
 
         setIsLoading(true);
         try {
-            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
+            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, await provider.getSigner());
             const issuedHashes = await contract.getIssuedCredentials(walletAddress);
 
             const creds: Credential[] = [];

@@ -102,7 +102,7 @@ export function MyDocuments() {
     const fetchUserFiles = async () => {
         setIsLoading(true);
         try {
-            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, provider);
+            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, await provider.getSigner());
             const metadataCIDs = await contract.getUserFiles(walletAddress);
 
             const uploadedDocs: Document[] = [];
