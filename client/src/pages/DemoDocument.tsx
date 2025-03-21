@@ -14,6 +14,7 @@ interface Document {
     url: string;
     allowedFields?: string[]; // Optional for shared documents
     expiration?: number; // Optional for shared documents
+    filteredMetadata?: { [key: string]: any }; // Optional for shared documents
 }
 
 export function MyDocuments() {
@@ -24,7 +25,7 @@ export function MyDocuments() {
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
     const { walletAddress, provider, refreshFiles } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
-    const [sharedDocuments, setSharedDocuments] = useState([]);
+    const [sharedDocuments, setSharedDocuments] = useState<Document[]>([]);
 
     useEffect(() => {
         if (walletAddress && provider) {
@@ -56,7 +57,7 @@ export function MyDocuments() {
             const sharedDocs = await Promise.all(sharedData.map(async (share: any) => {
                 // Assume share.fileHash is used as metadataCID for shared credentials.
                 const metadataUrl = `https://gateway.pinata.cloud/ipfs/${share.fileHash}`;
-                let fullMetadata = {};
+                let fullMetadata: { [key: string]: any } = {};
                 try {
                     const response = await fetch(metadataUrl);
                     if (response.ok) {
@@ -69,7 +70,7 @@ export function MyDocuments() {
                 }
 
                 // Filter metadata: only keep keys that are allowed
-                let filteredMetadata = {};
+                let filteredMetadata: { [key: string]: any } = {};
                 if (share.allowedFields && share.allowedFields.length > 0) {
                     share.allowedFields.forEach((field: string) => {
                         if (fullMetadata[field] !== undefined) {
@@ -102,7 +103,9 @@ export function MyDocuments() {
     const fetchUserFiles = async () => {
         setIsLoading(true);
         try {
-            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, await provider.getSigner());
+            if (!provider) throw new Error('Provider not available');
+            const signer = await provider.getSigner();
+            const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
             const metadataCIDs = await contract.getUserFiles(walletAddress);
 
             const uploadedDocs: Document[] = [];
@@ -118,7 +121,7 @@ export function MyDocuments() {
                     const { fileHash, fileName, timestamp } = metadata;
                     const [isValid, issuer, receiver] = await contract.verifyCredential(metadataCID);
                     const details = await contract.getCredentialDetails(metadataCID, []);
-                    const status = !isValid ? (details.isDeleted ? 'Deleted' : 'Revoked') : 'Active';
+                    const status = (!isValid ? (details.isDeleted ? "Deleted" : "Revoked") : "Active") as "Active" | "Revoked" | "Deleted";
 
                     const documentData = {
                         fileHash: fileHash || metadataCID,
@@ -187,7 +190,7 @@ export function MyDocuments() {
 
             // Call shareCredential function on the contract
             const tx = await contract.shareCredential(
-                selectedDoc.fileHash, // use the fileHash (or metadataCID as stored in your contract)
+                selectedDoc!.fileHash, // use the fileHash (or metadataCID as stored in your contract)
                 shareRecipient,
                 fieldsArray,
                 shareDuration
@@ -229,7 +232,7 @@ export function MyDocuments() {
                             <div key={doc.fileHash} className="card p-4 border rounded cursor-pointer hover:shadow-lg" onClick={() => setSelectedDoc(doc)}>
                                 <FileText className="w-6 h-6" />
                                 <p className="font-medium truncate">{doc.filename}</p>
-                                <p className="text-gray-500">Expires: {new Date(doc.expiration).toLocaleString()}</p>
+                                <p className="text-gray-500">Expires: {doc.expiration ? new Date(doc.expiration).toLocaleString() : 'N/A'}</p>
                                 <p className="text-sm text-blue-600">Shared Access</p>
                                 {doc.filteredMetadata && (
                                     <div className="mt-2 text-sm bg-gray-50 p-2 rounded border">
@@ -254,7 +257,7 @@ export function MyDocuments() {
                             {validDocs.map((doc) => (
                                 <tr key={doc.fileHash} onClick={() => setSelectedDoc(doc)} className="hover:bg-gray-100">
                                     <td className="py-4">{doc.filename}</td>
-                                    <td className="py-4">{new Date(doc.expiration).toLocaleString()}</td>
+                                    <td className="py-4">{doc.expiration ? new Date(doc.expiration).toLocaleString() : 'N/A'}</td>
                                     <td className="py-4 text-sm font-medium">Shared Access</td>
                                 </tr>
                             ))}
@@ -301,6 +304,7 @@ export function MyDocuments() {
                                     {/* Hide delete button for shared documents */}
                                     {doc.status !== 'Shared' && (
                                         <button
+                                            title="Delete Document"
                                             onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
                                             className="text-red-500 hover:text-red-700"
                                             disabled={doc.status !== 'Active'}
@@ -329,8 +333,8 @@ export function MyDocuments() {
             <section className="py-12 bg-white">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex justify-between mb-8">
-                        <button onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100"><Grid className="w-5 h-5" /></button>
-                        <button onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100"><List className="w-5 h-5" /></button>
+                        <button title="Grid View" onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100"><Grid className="w-5 h-5" /></button>
+                        <button title="List View" onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100"><List className="w-5 h-5" /></button>
                     </div>
                     {isLoading ?
                         <div className="flex justify-center py-8">
