@@ -4,6 +4,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { Contract, ethers } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
 import { NotificationType } from '../types.js';
+import { NotificationBanner } from '../components/issuer/NotificationBanner.js';
 
 interface Document {
     fileHash: string;
@@ -331,11 +332,13 @@ export function MyDocuments() {
             </section>
 
             <section className="py-12 bg-white">
+                
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex justify-between mb-8">
                         <button title="Grid View" onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100"><Grid className="w-5 h-5" /></button>
                         <button title="List View" onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100"><List className="w-5 h-5" /></button>
                     </div>
+                    <NotificationBanner notification={notification} />
                     {isLoading ?
                         <div className="flex justify-center py-8">
                             <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
