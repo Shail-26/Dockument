@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Grid, List, Trash2, FileText } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
-import { Contract, ethers } from 'ethers';
+import { Contract } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
 import { NotificationType } from '../types.js';
 import { NotificationBanner } from '../components/issuer/NotificationBanner.js';
 import { ShareCredentialModal } from '../components/ShareCredentialModal'; // Adjust path based on file location
 
 interface Document {
-    revokedFieldKeys: any;
+    revokedFieldKeys?: any;
     fileHash: string;
     filename: string;
     metadataCID?: string;
@@ -47,31 +47,6 @@ export function MyDocuments() {
         }
     }, [walletAddress, provider, refreshFiles]);
 
-    useEffect(() => {
-        const fetchCertificateData = async () => {
-            if (!selectedDoc || !provider || selectedDoc.filename !== "ISSUED CREDENTIAL") {
-                setCertificateData(null);
-                return;
-            }
-
-            try {
-                const metadataUrl = `https://gateway.pinata.cloud/ipfs/${selectedDoc.fileHash}`;
-                const response = await fetch(metadataUrl);
-                if (response.ok) {
-                    const metadata = await response.json();
-                    setCertificateData(metadata);
-                } else {
-                    console.warn(`Failed to fetch metadata for ${selectedDoc.fileHash}`);
-                    setCertificateData(null);
-                }
-            } catch (error) {
-                console.error("Error fetching certificate data:", error);
-                setCertificateData(null);
-            }
-        };
-
-        fetchCertificateData();
-    }, [selectedDoc, provider]);
 
     useEffect(() => {
         const fetchAvailableFields = async () => {
@@ -342,7 +317,7 @@ export function MyDocuments() {
                     const metadata = await response.json();
 
                     const { fileHash, fileName, timestamp } = metadata;
-                    const [isValid, issuer, receiver] = await contract.verifyCredential(metadataCID);
+                    const [isValid] = await contract.verifyCredential(metadataCID);
                     const details = await contract.getCredentialDetails(metadataCID, []);
                     const status = (!isValid ? (details.isDeleted ? "Deleted" : "Revoked") : "Active") as "Active" | "Revoked" | "Deleted";
 
@@ -392,11 +367,6 @@ export function MyDocuments() {
         } catch (error) {
             console.error('Error deleting document:', error);
         }
-    };
-
-    const getFileIcon = (metadata: string) => {
-        // Placeholder: Determine file type from metadata or fileHash if needed
-        return <FileText className="w-6 h-6" />;
     };
 
     const handleShareCredential = async () => {
@@ -688,7 +658,7 @@ export function MyDocuments() {
                                         <p><strong>Revoked Fields:</strong></p>
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {selectedDoc.revokedFieldKeys?.length > 0 ? (
-                                                selectedDoc.revokedFieldKeys.map(field => (
+                                                selectedDoc.revokedFieldKeys.map((field:string) => (
                                                     <span
                                                         key={field}
                                                         className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm"
@@ -797,7 +767,7 @@ export function MyDocuments() {
                                                     <p><strong>Revoked Fields:</strong></p>
                                                     <div className="flex flex-wrap gap-2 mt-1">
                                                         {selectedDoc.revokedFieldKeys?.length > 0 ? (
-                                                            selectedDoc.revokedFieldKeys.map(field => (
+                                                            selectedDoc.revokedFieldKeys.map((field:string) => (
                                                                 <span
                                                                     key={field}
                                                                     className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm"
