@@ -5,6 +5,7 @@ import { Contract, ethers } from 'ethers';
 import { ContractAbi, CONTRACT_ADDRESS } from '../contract_info.jsx';
 import { NotificationType } from '../types.js';
 import { NotificationBanner } from '../components/issuer/NotificationBanner.js';
+import { ShareCredentialModal } from '../components/ShareCredentialModal'; // Adjust path based on file location
 
 interface Document {
     revokedFieldKeys: any;
@@ -30,6 +31,13 @@ export function MyDocuments() {
     const [isLoading, setIsLoading] = useState(false);
     const [sharedDocuments, setSharedDocuments] = useState<Document[]>([]);
     const [sharedByOwner, setSharedByOwner] = useState<Document[]>([]);
+    const [availableFields, setAvailableFields] = useState<string[]>([]);
+    const [shareRecipient, setShareRecipient] = useState("");
+    const [selectedFields, setSelectedFields] = useState<string[]>([]); // Replaced shareFields
+    const [shareDuration, setShareDuration] = useState(0);
+    // const [shareFields, setShareFields] = useState("");
+    // const [showCertificate, setShowCertificate] = useState(false); // New state for certificate view
+    // const [certificateData, setCertificateData] = useState<{ [key: string]: any } | null>(null); // New state for certificate data
 
     useEffect(() => {
         if (walletAddress && provider) {
@@ -38,6 +46,68 @@ export function MyDocuments() {
             fetchSharedByOwner();
         }
     }, [walletAddress, provider, refreshFiles]);
+
+    useEffect(() => {
+        const fetchCertificateData = async () => {
+            if (!selectedDoc || !provider || selectedDoc.filename !== "ISSUED CREDENTIAL") {
+                setCertificateData(null);
+                return;
+            }
+
+            try {
+                const metadataUrl = `https://gateway.pinata.cloud/ipfs/${selectedDoc.fileHash}`;
+                const response = await fetch(metadataUrl);
+                if (response.ok) {
+                    const metadata = await response.json();
+                    setCertificateData(metadata);
+                } else {
+                    console.warn(`Failed to fetch metadata for ${selectedDoc.fileHash}`);
+                    setCertificateData(null);
+                }
+            } catch (error) {
+                console.error("Error fetching certificate data:", error);
+                setCertificateData(null);
+            }
+        };
+
+        fetchCertificateData();
+    }, [selectedDoc, provider]);
+
+    useEffect(() => {
+        const fetchAvailableFields = async () => {
+            if (!selectedDoc || !provider || selectedDoc.filename !== "ISSUED CREDENTIAL") {
+                setAvailableFields([]);
+                setSelectedFields([]);
+                return;
+            }
+
+            try {
+                const signer = await provider.getSigner();
+                const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
+                const metadataUrl = `https://gateway.pinata.cloud/ipfs/${selectedDoc.fileHash}`;
+                const response = await fetch(metadataUrl);
+
+                if (response.ok) {
+                    const metadata = await response.json();
+                    // Assuming metadata is an object like { name: "Alice", type: "Certificate", course: "Math" }
+                    const fields = Object.keys(metadata).filter(key => key !== "fileHash" && key !== "fileName" && key !== "timestamp");
+                    setAvailableFields(fields);
+                } else {
+                    // Fallback: Use contract's mandatoryFields or a default list if metadata fetch fails
+                    const mandatoryFields = await contract.getMandatoryFields(selectedDoc.fileHash);
+                    const parsedFields = JSON.parse(mandatoryFields).fields || ["name", "type", "course"];
+                    setAvailableFields(parsedFields);
+                }
+            } catch (error) {
+                console.error("Error fetching available fields:", error);
+                // Default fields as fallback
+                setAvailableFields(["name", "type", "course"]);
+            }
+            setSelectedFields([]); // Reset selected fields when a new document is selected
+        };
+
+        fetchAvailableFields();
+    }, [selectedDoc, provider]);
 
     useEffect(() => {
         if (sharedDocuments.length > 0) {
@@ -328,45 +398,97 @@ export function MyDocuments() {
         // Placeholder: Determine file type from metadata or fileHash if needed
         return <FileText className="w-6 h-6" />;
     };
-    const [shareRecipient, setShareRecipient] = useState("");
-    const [shareFields, setShareFields] = useState("");
-    const [shareDuration, setShareDuration] = useState(0);
 
     const handleShareCredential = async () => {
-        if (!provider || !walletAddress) return;
+        if (!provider || !walletAddress || !selectedDoc) return;
         try {
-            // Parse the fields from comma-separated string into an array of trimmed field names
-            const fieldsArray = shareFields.split(",").map(f => f.trim()).filter(f => f !== "");
 
             const signer = await provider.getSigner();
             const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
 
-            // Call shareCredential function on the contract
-            const tx = await contract.shareCredential(
-                selectedDoc!.fileHash, // use the fileHash (or metadataCID as stored in your contract)
-                shareRecipient,
-                fieldsArray,
-                shareDuration
+            const existingShare = sharedByOwner.find(
+                (doc) =>
+                    doc.fileHash === selectedDoc.fileHash &&
+                    doc.recipient === shareRecipient &&
+                    doc.expiration && doc.expiration > Date.now()
             );
-            console.log("Share transaction submitted:", tx.hash);
-            setNotification({
-                type: "success",
-                message: "Credential shared successfully! Waiting for confirmation...",
-                txHash: tx.hash,
-            });
-            await tx.wait();
-            setNotification({
-                type: "success",
-                message: "Credential shared successfully!",
-                txHash: tx.hash,
-            });
+
+            // Call shareCredential function on the contract
+            if (existingShare) {
+                // Compare selectedFields with existing allowedFields
+                const existingFields = existingShare.allowedFields || [];
+                const fieldsAreIdentical =
+                    selectedFields.length === existingFields.length &&
+                    selectedFields.every((field) => existingFields.includes(field)) &&
+                    existingFields.every((field) => selectedFields.includes(field));
+
+                if (fieldsAreIdentical) {
+                    // Fields are the same, show error
+                    setNotification({
+                        type: "error",
+                        message: "This credential is already shared with this recipient with the same fields.",
+                    });
+                    return;
+                } else {
+                    // Fields differ, modify the existing share by adding new fields
+                    const updatedFields = [...new Set([...existingFields, ...selectedFields])]; // Merge and remove duplicates
+
+                    // Here, we assume the contract overwrites the existing share with new fields
+                    // If your contract doesn't support modification, you'd need to revoke and re-share
+                    const tx = await contract.shareCredential(
+                        selectedDoc.fileHash,
+                        shareRecipient,
+                        updatedFields,
+                        shareDuration // Use new duration or keep existing one (adjust as needed)
+                    );
+                    console.log("Modify share transaction submitted:", tx.hash);
+                    setNotification({
+                        type: "success",
+                        message: "Sharing modified with new fields! Waiting for confirmation...",
+                        txHash: tx.hash,
+                    });
+                    await tx.wait();
+                    setNotification({
+                        type: "success",
+                        message: "Sharing modified successfully!",
+                        txHash: tx.hash,
+                    });
+                }
+            } else {
+                // No active share exists, proceed with a new share
+                const tx = await contract.shareCredential(
+                    selectedDoc.fileHash,
+                    shareRecipient,
+                    selectedFields,
+                    shareDuration
+                );
+                console.log("Share transaction submitted:", tx.hash);
+                setNotification({
+                    type: "success",
+                    message: "Credential shared successfully! Waiting for confirmation...",
+                    txHash: tx.hash,
+                });
+                await tx.wait();
+                setNotification({
+                    type: "success",
+                    message: "Credential shared successfully!",
+                    txHash: tx.hash,
+                });
+            }
             // Optionally refresh shared credentials from the contract here
+            fetchSharedByOwner(); // Refresh "Shared By Me"
+            setShareRecipient("");
+            setSelectedFields([]);
+            setShareDuration(0);
         } catch (error) {
             console.error("Error sharing credential:", error);
             setNotification({
                 type: "error",
                 message: error instanceof Error ? error.message : "Failed to share credential",
             });
+        } finally {
+            setTimeout(() => setNotification(null), 5000);
+            setSelectedDoc(null);
         }
     };
 
@@ -538,8 +660,8 @@ export function MyDocuments() {
                                             </p>
                                             <p><strong>Status:</strong>
                                                 <span className={`ml-2 px-2 py-1 rounded ${selectedDoc.expiration && selectedDoc.expiration < Date.now() ?
-                                                        'bg-red-100 text-red-800' :
-                                                        'bg-green-100 text-green-800'
+                                                    'bg-red-100 text-red-800' :
+                                                    'bg-green-100 text-green-800'
                                                     }`}>
                                                     {selectedDoc.expiration && selectedDoc.expiration < Date.now() ?
                                                         'Expired' : 'Active'}
@@ -581,85 +703,174 @@ export function MyDocuments() {
                                     </div>
                                 </div>
                             </div>
-                            ) : selectedDoc.status === 'Shared' ? (
-                                // For shared documents, check if access is still valid.
-                                Date.now() < (selectedDoc.expiration || 0) ? (
-                                    <div>
-                                        <p className="text-lg font-semibold mb-2">Shared Credential Details</p>
-                                        {/* Render only the filtered metadata for shared credentials */}
-                                        {selectedDoc.filteredMetadata ? (
-                                            Object.entries(selectedDoc.filteredMetadata).map(([key, value]) => (
-                                                <p key={key}>
-                                                    <strong className="capitalize">{key}:</strong> {value}
-                                                </p>
-                                            ))
-                                        ) : (
-                                            <p>No shared details available.</p>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p className="text-red-500 font-bold">Shared access has expired.</p>
-                                )
-                            ) : (
-                                // For non-shared documents, display full details
+                        ) : selectedDoc.status === 'Shared' ? (
+                            // For shared documents, check if access is still valid.
+                            Date.now() < (selectedDoc.expiration || 0) ? (
                                 <div>
-                                    <p><strong>File Name:</strong> {selectedDoc.filename}</p>
-                                    <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
-                                    <p><strong>Status:</strong> {selectedDoc.status}</p>
-                                    <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
-                                    <div className="mt-4">
-                                        <a
-                                            href={selectedDoc.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 underline font-semibold"
-                                        >
-                                            Open Document in New Tab
-                                        </a>
-                                    </div>
+                                    <p className="text-lg font-semibold mb-2">Shared Credential Details</p>
+                                    {/* Render only the filtered metadata for shared credentials */}
+                                    {selectedDoc.filteredMetadata ? (
+                                        Object.entries(selectedDoc.filteredMetadata).map(([key, value]) => (
+                                            <p key={key}>
+                                                <strong className="capitalize">{key}:</strong> {value}
+                                            </p>
+                                        ))
+                                    ) : (
+                                        <p>No shared details available.</p>
+                                    )}
                                 </div>
-                            )}
+                            ) : (
+                                <p className="text-red-500 font-bold">Shared access has expired.</p>
+                            )
+                        ) : (
+                            // For non-shared documents, display full details
+                            <div>
+                                <p><strong>File Name:</strong> {selectedDoc.filename}</p>
+                                <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
+                                <p><strong>Status:</strong> {selectedDoc.status}</p>
+                                <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
+                                <div className="mt-4">
+                                    <a
+                                        href={selectedDoc.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 underline font-semibold"
+                                    >
+                                        Open Document in New Tab
+                                    </a>
+                                </div>
+                            </div>
+                        )}
 
-                        {selectedDoc.filename === "ISSUED CREDENTIAL" && (
-                            <div className="mt-6 border-t pt-4">
-                                <h4 className="text-lg font-semibold mb-2">Share Credential</h4>
-                                <div className="mb-2">
-                                    <label className="block text-sm font-medium">Recipient Address</label>
-                                    <input
-                                        type="text"
-                                        placeholder="0x..."
-                                        value={shareRecipient}
-                                        onChange={(e) => setShareRecipient(e.target.value)}
-                                        className="mt-1 p-2 border rounded w-full"
-                                    />
+                        {selectedDoc && (
+                            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                                <div className="bg-white p-6 rounded shadow-lg max-w-2xl w-full">
+                                    <h3 className="text-xl font-bold mb-4">Document Preview</h3>
+                                    {selectedDoc.recipient ? (
+                                        <div>
+                                            <div className="mb-4">
+                                                <p className="font-semibold">Credential: {selectedDoc.filename}</p>
+                                                <p className="text-sm text-gray-600 break-all">IPFS Hash: {selectedDoc.fileHash}</p>
+                                            </div>
+                                            <div className="border-t pt-4">
+                                                <h4 className="text-lg font-semibold mb-2">Sharing Details</h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <p><strong>Shared With:</strong>
+                                                            <span className="break-all block">{selectedDoc.recipient}</span>
+                                                        </p>
+                                                        <p><strong>Shared On:</strong>
+                                                            {new Date(selectedDoc.timestamp).toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p><strong>Expires:</strong>
+                                                            {selectedDoc.expiration ?
+                                                                new Date(selectedDoc.expiration).toLocaleString() :
+                                                                'Never'}
+                                                        </p>
+                                                        <p><strong>Status:</strong>
+                                                            <span className={`ml-2 px-2 py-1 rounded ${selectedDoc.expiration && selectedDoc.expiration < Date.now() ?
+                                                                'bg-red-100 text-red-800' :
+                                                                'bg-green-100 text-green-800'
+                                                                }`}>
+                                                                {selectedDoc.expiration && selectedDoc.expiration < Date.now() ?
+                                                                    'Expired' : 'Active'}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4">
+                                                    <p><strong>Allowed Fields:</strong></p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {selectedDoc.allowedFields?.map(field => (
+                                                            <span
+                                                                key={field}
+                                                                className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
+                                                            >
+                                                                {field}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4">
+                                                    <p><strong>Revoked Fields:</strong></p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {selectedDoc.revokedFieldKeys?.length > 0 ? (
+                                                            selectedDoc.revokedFieldKeys.map(field => (
+                                                                <span
+                                                                    key={field}
+                                                                    className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm"
+                                                                >
+                                                                    {field}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <p className="text-gray-500">No fields revoked</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : selectedDoc.status === 'Shared' ? (
+                                        Date.now() < (selectedDoc.expiration || 0) ? (
+                                            <div>
+                                                <p className="text-lg font-semibold mb-2">Shared Credential Details</p>
+                                                {selectedDoc.filteredMetadata ? (
+                                                    Object.entries(selectedDoc.filteredMetadata).map(([key, value]) => (
+                                                        <p key={key}>
+                                                            <strong className="capitalize">{key}:</strong> {value}
+                                                        </p>
+                                                    ))
+                                                ) : (
+                                                    <p>No shared details available.</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <p className="text-red-500 font-bold">Shared access has expired.</p>
+                                        )
+                                    ) : (
+                                        <div>
+                                            <p><strong>File Name:</strong> {selectedDoc.filename}</p>
+                                            <p><strong>IPFS Hash:</strong> {selectedDoc.fileHash}</p>
+                                            <p><strong>Status:</strong> {selectedDoc.status}</p>
+                                            <p><strong>Last Modified:</strong> {new Date(selectedDoc.timestamp).toLocaleString()}</p>
+                                            <div className="mt-4">
+                                                <a
+                                                    href={selectedDoc.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 underline font-semibold"
+                                                >
+                                                    Open Document in New Tab
+                                                </a>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Use the new component here */}
+                                    {selectedDoc.filename === "ISSUED CREDENTIAL" && (
+                                        <ShareCredentialModal
+                                            selectedDoc={selectedDoc}
+                                            provider={provider}
+                                            shareRecipient={shareRecipient}
+                                            setShareRecipient={setShareRecipient}
+                                            selectedFields={selectedFields}
+                                            setSelectedFields={setSelectedFields}
+                                            shareDuration={shareDuration}
+                                            setShareDuration={setShareDuration}
+                                            availableFields={availableFields}
+                                            handleShareCredential={handleShareCredential}
+                                        />
+                                    )}
+
+                                    <button
+                                        className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
+                                        onClick={() => setSelectedDoc(null)}
+                                    >
+                                        Close
+                                    </button>
                                 </div>
-                                <div className="mb-2">
-                                    <label className="block text-sm font-medium">Fields to Share (comma separated)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="name,type,course"
-                                        value={shareFields}
-                                        onChange={(e) => setShareFields(e.target.value)}
-                                        className="mt-1 p-2 border rounded w-full"
-                                    />
-                                </div>
-                                <div className="mb-2">
-                                    <label className="block text-sm font-medium">Access Duration (in seconds)</label>
-                                    <input
-                                        type="number"
-                                        placeholder="3600"
-                                        value={shareDuration}
-                                        onChange={(e) => setShareDuration(Number(e.target.value))}
-                                        className="mt-1 p-2 border rounded w-full"
-                                    />
-                                </div>
-                                <button
-                                    className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
-                                    onClick={handleShareCredential}
-                                    disabled={!shareRecipient || !shareFields || !shareDuration}
-                                >
-                                    Share Credential
-                                </button>
                             </div>
                         )}
 

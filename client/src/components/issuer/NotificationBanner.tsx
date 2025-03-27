@@ -6,7 +6,7 @@ export const NotificationBanner = ({ notification }: { notification: Notificatio
     if (!notification) return null;
 
     return (
-        <div className={`mb-6 p-4 rounded-lg flex items-center ${notification.type === 'success'
+        <div className={`mb-6 p-4 rounded-lg flex items-center break-all ${notification.type === 'success'
             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
             : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
             }`}>
