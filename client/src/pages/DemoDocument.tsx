@@ -168,12 +168,13 @@ export function MyDocuments() {
                             >
                                 <FileText className="w-6 h-6" />
                                 <p className="font-medium truncate">{doc.filename}</p>
-                                <p className="text-gray-500">Shared with: {doc.recipient}</p>
+                                <p className="text-gray-500 break-all">Shared with: <span className="break-all">{doc.recipient}</span></p>
                                 <p className="text-gray-500">Expires: {doc.expiration ? new Date(doc.expiration).toLocaleString() : 'N/A'}</p>
                                 <p className="text-sm text-green-600">Active</p>
                             </div>
                         ))}
                     </div>
+
                 ) : (
                     <table className="w-full mb-8">
                         <thead>
@@ -215,7 +216,7 @@ export function MyDocuments() {
                             >
                                 <FileText className="w-6 h-6" />
                                 <p className="font-medium truncate">{doc.filename}</p>
-                                <p className="text-gray-500">Shared with: {doc.recipient}</p>
+                                <p className="text-gray-500 break-all">Shared with: {doc.recipient}</p>
                                 <p className="text-gray-500">Expired: {doc.expiration ? new Date(doc.expiration).toLocaleString() : 'N/A'}</p>
                                 <p className="text-sm text-red-600">Expired</p>
                             </div>
