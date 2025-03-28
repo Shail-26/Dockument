@@ -15,12 +15,17 @@ export interface FormField {
 }
 
 export interface Document {
+    revokedFieldKeys?: any;
     fileHash: string;
     filename: string;
-    metadataCID: string;
+    metadataCID?: string;
     timestamp: number;
-    status: 'Active' | 'Revoked' | 'Deleted';
+    status: 'Active' | 'Revoked' | 'Deleted' | 'Shared';
     url: string;
+    allowedFields?: string[]; // Optional for shared documents
+    expiration?: number; // Optional for shared documents
+    filteredMetadata?: { [key: string]: any }; // Optional for shared documents
+    recipient?: string;
 }
 
 export interface NotificationType {

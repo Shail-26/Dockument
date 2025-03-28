@@ -28,6 +28,7 @@ contract FileStorage {
     mapping(address => SharedAccess[]) private sharedWith;  // Tracks credentials shared with a user
     mapping(address => mapping(string => SharedAccess)) private sharedAccess;  // Owner -> FileHash -> SharedAccess
     mapping(address => bool) private issuers;
+    mapping(address => SharedAccess[]) private sharedByOwner;
     address public owner;
 
     event FileUploaded(string fileHash, uint256 timestamp, address indexed owner);
@@ -89,7 +90,12 @@ contract FileStorage {
 
         sharedWith[_recipient].push(newShare);
         sharedAccess[msg.sender][_fileHash] = newShare;
+        sharedByOwner[msg.sender].push(newShare);
         emit CredentialShared(_fileHash, msg.sender, _recipient, newShare.expiration);
+    }
+
+    function getSharedByOwner() public view returns (SharedAccess[] memory) {
+        return sharedByOwner[msg.sender];
     }
 
     function revokeSharedAccess(string memory _fileHash, address _recipient) public {
