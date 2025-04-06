@@ -12,8 +12,8 @@ import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 import { FileUpload } from './pages/FileUpload';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { MyDocuments } from './pages/MyDocuments';
-// import { MyDocuments } from './pages/DemoDocument';
+// import { MyDocuments } from './pages/MyDocuments';
+import { MyDocuments } from './pages/DemoDocument';
 import { IssuerDashboard } from './components/issuer/IssuerDashboard';
 
 function App() {
