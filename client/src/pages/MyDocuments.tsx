@@ -23,7 +23,7 @@ export function MyDocuments() {
   const [shareDuration, setShareDuration] = useState(0);
 
   const { walletAddress, provider, refreshFiles } = useWallet();
-  if(!walletAddress) return;
+  if (!walletAddress) return;
 
   const { uploadedDocuments, issuedDocuments, isLoading } = useUserFiles(walletAddress, provider);
   const { sharedDocuments } = useSharedDocuments(walletAddress, provider);
@@ -40,7 +40,7 @@ export function MyDocuments() {
       try {
         const signer = await provider.getSigner();
         const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
-        const metadataUrl = `https://gateway.pinata.cloud/ipfs/${selectedDoc.fileHash}`;
+        const metadataUrl = `https://ipfs.io/ipfs/${selectedDoc.fileHash}`;
         const response = await fetch(metadataUrl);
 
         if (response.ok) {
@@ -88,7 +88,7 @@ export function MyDocuments() {
       const contract = new Contract(CONTRACT_ADDRESS, ContractAbi, signer);
 
       const existingShare = sharedByOwner.find(
-        (doc:Document) =>
+        (doc: Document) =>
           doc.fileHash === selectedDoc.fileHash &&
           doc.recipient === shareRecipient &&
           doc.expiration > Date.now()
@@ -166,24 +166,36 @@ export function MyDocuments() {
 
   return (
     <div className="page-transition pt-16">
-      <section className="py-12 bg-white">
+      <section className="py-12 bg-gray-50 dark:bg-[#0f172a] transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl font-bold text-center">My Documents</h1>
-          <p className="text-center">Manage all your secure documents in one place</p>
+          <h1 className="text-4xl font-bold text-center text-gray-800 dark:text-white">My Documents</h1>
+          <p className="text-center text-gray-600 dark:text-gray-300">
+            Manage all your secure documents in one place
+          </p>
         </div>
       </section>
 
-      <section className="py-12 bg-white">
+      <section className="py-12 bg-gray-50 dark:bg-[#0f172a] transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between mb-8">
-            <button title="Grid View" onClick={() => setViewType('grid')} className="p-2 rounded-lg bg-gray-100">
-              <Grid className="w-5 h-5" />
+            <button
+              title="Grid View"
+              onClick={() => setViewType('grid')}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              <Grid className="w-5 h-5 text-gray-800 dark:text-white" />
             </button>
-            <button title="List View" onClick={() => setViewType('list')} className="p-2 rounded-lg bg-gray-100">
-              <List className="w-5 h-5" />
+            <button
+              title="List View"
+              onClick={() => setViewType('list')}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              <List className="w-5 h-5 text-gray-800 dark:text-white" />
             </button>
           </div>
+
           <NotificationBanner notification={notification} />
+
           {isLoading ? (
             <div className="flex justify-center py-8">
               <svg

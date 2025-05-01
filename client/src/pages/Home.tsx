@@ -12,7 +12,7 @@ export function Home() {
             Secure Your Digital Assets with Blockchain
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-            Experience unparalleled security and transparency with our blockchain-powered storage solution.
+            Experience unparalleled security and transparency with our blockchain-powered issuing solution.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup" className="gradient-btn">
