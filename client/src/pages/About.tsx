@@ -32,7 +32,7 @@ export function About() {
             Securing the Future of Digital Storage
           </h1>
           <p className="text-xl text-center text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-12">
-            At SecureChain Locker, we're revolutionizing digital storage by combining blockchain technology
+            At Dockument, we're revolutionizing digital storage by combining blockchain technology
             with state-of-the-art encryption to provide the most secure and transparent storage solution.
           </p>
           

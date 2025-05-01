@@ -18,7 +18,7 @@ export function Home() {
             <Link to="/signup" className="gradient-btn">
               Get Started Free
             </Link>
-            <Link to="/features" className="px-6 py-3 text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
+            <Link to="/documents" className="px-6 py-3 text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors">
               Learn More →
             </Link>
           </div>

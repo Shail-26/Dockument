@@ -311,7 +311,7 @@ export function MyDocuments() {
 
             for (const metadataCID of metadataCIDs) {
                 try {
-                    const metadataUrl = `https://gateway.pinata.cloud/ipfs/${metadataCID}`;
+                    const metadataUrl = `https://ipfs.io/ipfs/${metadataCID}`;
                     const response = await fetch(metadataUrl);
                     if (!response.ok) throw new Error(`Failed to fetch metadata from IPFS: ${metadataCID}`);
                     const metadata = await response.json();

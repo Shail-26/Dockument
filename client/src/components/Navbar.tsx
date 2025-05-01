@@ -14,7 +14,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
             <Lock className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-poppins font-bold text-xl">SecureChain Locker</span>
+            <span className="font-poppins font-bold text-xl">Dockument</span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-8">
@@ -27,7 +27,7 @@ export function Navbar() {
               <span>My Documents</span>
             </Link>
             <Link to="/about" className="nav-link">About</Link>
-            <Link to="/contact" className="nav-link">Contact</Link>
+            {/* <Link to="/contact" className="nav-link">Contact</Link> */}
             <Link to="/upload" className="flex items-center space-x-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300">
               <Upload className="w-5 h-5" />
               <span>Upload</span>
